@@ -1,0 +1,36 @@
+{
+  "name": "side-eye",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx serve out",
+    "data": "node --env-file-if-exists=.env scripts/build-data.mjs all",
+    "data:news": "node --env-file-if-exists=.env scripts/build-data.mjs news",
+    "data:judicial": "node --env-file-if-exists=.env scripts/build-data.mjs judicial",
+    "data:talent": "node --env-file-if-exists=.env scripts/fetch-talent.mjs",
+    "data:analyse": "node scripts/analyse-judgments.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "lint": "eslint . --ignore-pattern out --ignore-pattern .next"
+  },
+  "dependencies": {
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "4.2.1",
+    "typescript": "5.9.3"
+  },
+  "type": "module"
+}

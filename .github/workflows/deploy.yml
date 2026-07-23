@@ -1,0 +1,102 @@
+name: 更新資料並部署
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # 司法院 API 僅於臺北 00:00–06:00 開放，換算 UTC 為 16:00–22:00。
+    # GitHub 的排程在高負載時可能延遲一小時以上，因此設三個備援時段
+    # （臺北 01:00、03:00、05:00）。當日的異動清單處理過後，
+    # 後續時段只花兩個 API 請求就結束，重複執行幾乎沒有成本。
+    - cron: "0 17 * * *"
+    - cron: "0 19 * * *"
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+# 部署到 GitHub Pages 所需的權限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時只跑一份部署，排隊而不是互相取消，避免半夜的資料更新被推送打斷
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # 專案頁掛在 /<專案名>/ 底下；若之後改用自訂網域或使用者頁，
+      # 把儲存庫變數 USE_ROOT_PATH 設為 true 即可切成根目錄。
+      - name: 決定 basePath 與站台網址
+        id: paths
+        run: |
+          if [ "${{ vars.USE_ROOT_PATH }}" = "true" ]; then
+            echo "base_path=" >> "$GITHUB_OUTPUT"
+            echo "site_url=https://${{ github.repository_owner }}.github.io" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_path=/${{ github.event.repository.name }}" >> "$GITHUB_OUTPUT"
+            echo "site_url=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 名冊不放進 repo。優先取 Release 附件，其次沿用已發布網站上的前一版。
+      - name: 取得全國性平委員名冊
+        env:
+          SITE_URL: ${{ steps.paths.outputs.site_url }}
+          TALENT_SOURCE_URL: ${{ secrets.TALENT_SOURCE_URL }}
+        run: npm run data:talent
+
+      # 公視新聞索引：抓當日列表，與已發布的前一版合併累積
+      - name: 更新新聞索引
+        env:
+          SITE_URL: ${{ steps.paths.outputs.site_url }}
+        run: npm run data:news
+
+      # 司法院的 API 有其自身的時段與來源限制，取不到資料不應阻斷整個網站的部署，
+      # 因此這一步失敗只留下標記，建置與發布照常進行。連不上時腳本會保留既有資料。
+      # 需要更新時在國內網路執行 npm run data:judicial，再以 JUDICIAL_SOURCE_URL 提供給 CI。
+      - name: 更新裁判書統計
+        continue-on-error: true
+        env:
+          SITE_URL: ${{ steps.paths.outputs.site_url }}
+          # 完整同步要逐筆抓數千份裁判書，耗時二十分鐘以上。推送時只保留既有資料，
+          # 實際同步交給每晚的排程與手動觸發。
+          JUDICIAL_SKIP: ${{ github.event_name == 'push' }}
+          JUDICIAL_SOURCE_URL: ${{ secrets.JUDICIAL_SOURCE_URL }}
+          JUDICIAL_API_USER: ${{ secrets.JUDICIAL_API_USER }}
+          JUDICIAL_API_PASSWORD: ${{ secrets.JUDICIAL_API_PASSWORD }}
+        run: npm run data:judicial
+
+      - name: 建置靜態網站
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.paths.outputs.base_path }}
+        run: npm run build
+
+      - name: 驗證產出
+        run: node --test tests/rendered-html.test.mjs
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
