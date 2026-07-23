@@ -28,8 +28,8 @@ export const FEEDBACK_FORM_URL = "https://forms.gle/Du2rkvPUAvxiJ9JM7";
 
 /** 首頁兩道門之一「搞懂」通往的資料總覽頁，以及其下的各資料專區。 */
 export const SITE_SECTIONS = ["explore", "sources", "judges", "committee", "news", "coaches"] as const;
-/** 政策頁，只從頁尾進入，不列入專區入口。 */
-export const POLICY_SECTIONS = ["privacy", "corrections", "licence"] as const;
+/** 關於本站與政策頁，從選單「關於本站」或頁尾進入，不列入專區入口。 */
+export const POLICY_SECTIONS = ["faq", "privacy", "corrections", "licence"] as const;
 export const ALL_SECTIONS = [...SITE_SECTIONS, ...POLICY_SECTIONS] as const;
 export type SiteSection = (typeof ALL_SECTIONS)[number];
 export type SiteView = "home" | "victim" | SiteSection;
@@ -88,6 +88,10 @@ export const sectionMeta: Record<SiteView, PageMeta> = {
   coaches: {
     title: "運動部不適任教練專區",
     description: "運動部公開的不適任教練資訊入口，收錄涉及性平、傷害與家暴事件的刑事裁判資料範圍說明。",
+  },
+  faq: {
+    title: "常見問題",
+    description: "關於明鏡的定位與取捨：為什麼只有受害者專區、為什麼從當事人視角整理程序，以及法官資料為何不是評分。",
   },
   privacy: {
     title: "隱私政策",

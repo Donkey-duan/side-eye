@@ -3259,6 +3259,58 @@ footer > div:last-child a:hover {
   color: var(--paper);
 }
 
+/* 常見問題手風琴：問題長、答案更長，預設收合，點開才展開 */
+.faq-item {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--link);
+  margin-top: var(--sp-3);
+}
+
+.faq-item:first-child {
+  margin-top: 0;
+}
+
+.faq-item > summary {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lead);
+  font-weight: 500;
+  line-height: var(--lh-snug);
+  padding: var(--sp-4) var(--sp-5);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-4);
+}
+
+.faq-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item > summary::after {
+  content: "＋";
+  color: var(--link);
+  font-weight: 400;
+  flex-shrink: 0;
+}
+
+.faq-item[open] > summary::after {
+  content: "－";
+}
+
+.faq-item[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-item > div {
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.faq-item > div p:first-child {
+  margin-top: 0;
+}
+
 .footer-link {
   border: 0;
   border-bottom: 1px solid var(--line);

@@ -40,6 +40,7 @@ test("每個專區都有可分享的網址與各自的 metadata", async () => {
     ["/committee", "性平委員調查案例統計", /class="committee /],
     ["/news", "公視性平新聞索引", /class="news /],
     ["/coaches", "運動部不適任教練專區", /class="coach-watch /],
+    ["/faq", "常見問題", /為什麼只有「我是受害者」/],
     ["/privacy", "隱私政策", /本站不收集個人資料/],
     ["/corrections", "資料更正與下架", /可以要求更正的範圍/],
     ["/licence", "資料授權", /司法院裁判書/],

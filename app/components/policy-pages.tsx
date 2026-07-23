@@ -6,6 +6,37 @@ import { CONTACT_EMAIL, CORRECTION_FORM_URL, FEEDBACK_FORM_URL, type SiteView } 
 export default function PolicyPages({ siteView, onHome }: { siteView: SiteView; onHome: () => void }) {
   return (
     <>
+      <section className={`policy ${siteView !== "faq" ? "site-hidden" : ""}`} id="faq">
+        <button className="back-to-hub" onClick={() => onHome()}>← 回首頁</button>
+        <div className="section-heading"><div><span className="section-kicker">FAQ</span><h2>常見問題</h2></div><p>關於本站的定位、取捨與界線</p></div>
+        <div className="policy-body faq-list">
+          <details className="faq-item">
+            <summary>為什麼只有「我是受害者」，沒有「我是被冤枉的人」專區？</summary>
+            <div>
+              <p>性別事件的制度可能出兩種錯：真實發生的事件沒有被妥善辨識，以及無辜的人遭到錯誤認定。兩者都該被重視，但要面對的程序、需求與專業並不相同。</p>
+              <p>明鏡目前聚焦前者——受害者在證據保存、報案與司法程序、校園性平程序與資訊取得上的困難。這不表示本站否認錯誤指控或錯誤認定的可能，也不表示任何指控都應該被直接當成成立。</p>
+              <p>被指控者的申辯權、程序保障與法律協助同樣重要，但那需要刑事辯護、行政救濟與程序正義等不同的專業。本站目前沒有足夠條件完整處理，因此不為了形式上的對稱而草率設一個相關專區——與其做半套，不如先把一邊做好，並誠實說明界線。</p>
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary>為什麼從受害者的角度整理這些程序？對當事人有什麼幫助？</summary>
+            <div>
+              <p>性別事件發生後，當事人要面對的往往不只一個程序。他可能同時承受情緒與身體反應、家庭與伴侶關係的變化、工作或學業受影響，還得理解報案、蒐證、校園性平調查、司法程序、申復與救濟這一整套制度。</p>
+              <p>現有的資訊多半散在不同機關的網站，而且是用法規或行政機關的角度寫的。它們可能都正確，卻未必回答當事人最想知道的問題：接下來通常會發生什麼？現在該先做哪些事？哪些資料要保存？有哪些期限不能錯過？過程中可能被問什麼？自己有哪些選擇、可以拒絕什麼？結果不如預期時還有哪些路？</p>
+              <p>「我是受害者」專區就是想從當事人實際使用資訊的角度，把這些程序拆成看得懂、準備得來、可以一步步處理的內容。它保證不了案件成立，也消除不了事件造成的傷害，但可以減少反覆搜尋與判斷的負擔，降低因為不熟悉制度而錯過期限或權利的機會，也讓人在面對專業人員時，更知道自己可以問什麼、選什麼。</p>
+              <p>性別事件常讓人有強烈的失控感。明鏡最想做到的，不是替誰決定該走哪條路，而是讓當事人知道事情可能怎麼進行、自己現在在哪個位置、接下來有哪些選擇。<b>當很多事情都暫時無法掌握時，至少先幫當事人找回一點秩序。</b></p>
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary>「法官」那一區是在給法官評分或排名嗎？</summary>
+            <div>
+              <p>不是。那一區整理的是每位具名法官在性平相關案件的承審紀錄——承審多少件、結果怎麼分布、無罪率是多少（而且只計通常程序第一審，樣本達到門檻才顯示比率），每一筆都附上原始裁判連結供查證。</p>
+              <p>可以依件數或結果排序，只是方便查閱，<b>不是對法官能力、立場或「對受害者友不友善」的評分</b>。一位法官的定罪率或無罪率高低，大半由他被分到哪種案子決定，不是他嚴不嚴；把它讀成評分會誤導。本站也不對任何個人下評價、不做黑名單——這是為了讓資訊留在可查證的公共紀錄裡，而不是變成獵巫的工具。</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
       <section className={`policy ${siteView !== "privacy" ? "site-hidden" : ""}`} id="privacy">
         <button className="back-to-hub" onClick={() => onHome()}>← 回首頁</button>
         <div className="section-heading"><div><span className="section-kicker">PRIVACY</span><h2>隱私政策</h2></div><p>不設帳號 · 不追蹤 · 不投放廣告</p></div>

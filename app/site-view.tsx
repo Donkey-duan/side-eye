@@ -219,6 +219,7 @@ export default function SiteView() {
             <button className="menu-item" onClick={() => openSection("coaches")}>不適任教練</button>
             <details className="menu-group">
               <summary>關於本站</summary>
+              <button onClick={() => openSection("faq")}>常見問題</button>
               <button onClick={() => { mobileMenuRef.current?.removeAttribute("open"); setMethodOpen(true); }}>資料方法與更正原則</button>
               <button onClick={() => openSection("corrections")}>資料更正與回報</button>
               <button onClick={() => openSection("privacy")}>隱私政策</button>
@@ -467,6 +468,7 @@ export default function SiteView() {
         <div className="brand footer-brand"><span className="brand-mark">平</span><span><strong>明鏡性平</strong><small>公共資訊，促進制度問責</small></span></div>
         <p>本平台不是司法或申訴機關。緊急危險請撥 110；保護專線 113。</p>
         <div>
+          <button className="footer-link" onClick={() => openSection("faq")}>常見問題</button>
           <button className="footer-link" onClick={() => openSection("privacy")}>隱私政策</button>
           <button className="footer-link" onClick={() => openSection("corrections")}>資料更正與下架</button>
           <button className="footer-link" onClick={() => openSection("licence")}>資料授權</button>
