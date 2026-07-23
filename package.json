@@ -12,6 +12,7 @@
     "data": "node --env-file-if-exists=.env scripts/build-data.mjs all",
     "data:news": "node --env-file-if-exists=.env scripts/build-data.mjs news",
     "data:judicial": "node --env-file-if-exists=.env scripts/build-data.mjs judicial",
+    "sync:judicial": "node scripts/sync-judicial.mjs",
     "data:talent": "node --env-file-if-exists=.env scripts/fetch-talent.mjs",
     "data:analyse": "node scripts/analyse-judgments.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
