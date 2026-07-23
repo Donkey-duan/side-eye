@@ -10,27 +10,30 @@
  *
  * 需要：本機 .env 內有 JUDICIAL_API_USER / JUDICIAL_API_PASSWORD；gh 已登入且在專案目錄。
  * 這支腳本不進 git、不碰你的其他資料，只做三件事：抓資料 → 更新 Release 種子 → 觸發部署。
+ * 每晚由 Windows 工作排程「明鏡-裁判資料同步」自動執行。
  */
-import { spawnSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 
 const TAG = "judicial-seed";           // 存種子的 Release 標籤
 const SEED_FILE = "public/data/judgments.json";
 const WORKFLOW = "deploy.yml";         // 用檔名觸發，避免中文工作流程名的引號問題
 
-function run(cmd, args, extraEnv = {}) {
-  const r = spawnSync(cmd, args, { stdio: "inherit", shell: true, env: { ...process.env, ...extraEnv } });
-  if (r.status !== 0) {
-    console.error(`\n✗ 指令失敗（離開碼 ${r.status}）：${cmd} ${args.join(" ")}`);
-    process.exit(r.status ?? 1);
+// 用完整命令字串跑，避免 spawn 的 shell+args 觸發 DEP0190；命令都是固定常數、無注入疑慮。
+function run(command, extraEnv = {}) {
+  try {
+    execSync(command, { stdio: "inherit", env: { ...process.env, ...extraEnv } });
+  } catch (error) {
+    console.error(`\n✗ 指令失敗：${command}`);
+    process.exit(error.status ?? 1);
   }
 }
 
-function capture(cmd, args) {
-  return (spawnSync(cmd, args, { encoding: "utf8", shell: true }).stdout ?? "").trim();
+function capture(command) {
+  return execSync(command, { encoding: "utf8" }).trim();
 }
 
-const repo = capture("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"]);
+const repo = capture("gh repo view --json nameWithOwner --jq .nameWithOwner");
 if (!repo) {
   console.error("✗ 取不到 repo 資訊，請確認 gh 已登入（gh auth status）且在專案目錄下執行。");
   process.exit(1);
@@ -40,7 +43,7 @@ const seedUrl = `https://github.com/${repo}/releases/download/${TAG}/judgments.j
 
 console.log("① 抓司法院 API 並處理（僅臺灣網路、開放時段可成功）");
 console.log(`   累加起點：${seedUrl}`);
-run("npm", ["run", "data:judicial"], { JUDICIAL_SOURCE_URL: seedUrl });
+run("npm run data:judicial", { JUDICIAL_SOURCE_URL: seedUrl });
 
 let count = "?";
 try {
@@ -54,10 +57,10 @@ try {
 }
 
 console.log("\n③ 推上 Release 種子（--clobber 覆蓋舊的）");
-run("gh", ["release", "upload", TAG, SEED_FILE, "--clobber"]);
+run(`gh release upload ${TAG} ${SEED_FILE} --clobber`);
 
 console.log("\n④ 觸發 CI 重建與部署");
-run("gh", ["workflow", "run", WORKFLOW, "--ref", "main"]);
+run(`gh workflow run ${WORKFLOW} --ref main`);
 
 console.log(`\n✓ 完成：種子已更新為 ${count} 筆，CI 已開始重建部署。`);
 console.log("  到 GitHub 的 Actions 分頁看進度，幾分鐘後線上統計就會更新。");
