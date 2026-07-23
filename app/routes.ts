@@ -91,7 +91,7 @@ export const sectionMeta: Record<SiteView, PageMeta> = {
   },
   faq: {
     title: "常見問題",
-    description: "關於明鏡的定位與取捨：為什麼只有受害者專區、為什麼從當事人視角整理程序，以及法官資料為何不是評分。",
+    description: "關於明鏡的定位與取捨：為什麼只有受害者專區、法官資料為何不是評分，以及這個站到底是為誰而做。",
   },
   privacy: {
     title: "隱私政策",
