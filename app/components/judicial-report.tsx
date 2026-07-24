@@ -312,8 +312,8 @@ export default function JudicialReport({ data, view, onTab }: {
                 <th scope="col">宣告刑<br /><small>中位數</small></th>
                 <th scope="col">半數落在<br /><small>四分位距</small></th>
                 <th scope="col">緩刑<br /><small>÷ 定罪</small></th>
-                <th scope="col">判罰金</th>
-                <th scope="col">判拘役</th>
+                <th scope="col">判罰金<br /><small>件數</small></th>
+                <th scope="col">判拘役<br /><small>件數</small></th>
               </tr>
             </thead>
             <tbody>
@@ -330,8 +330,8 @@ export default function JudicialReport({ data, view, onTab }: {
                   <td data-label="緩刑（÷定罪）" title={`${fraction(item.probation)}（分母為定罪件數）`}>
                     {percent(item.probation.rate)}
                   </td>
-                  <td data-label="判罰金">{item.fine.toLocaleString()}</td>
-                  <td data-label="判拘役">{item.detention.toLocaleString()}</td>
+                  <td data-label="判罰金件數">{item.fine.toLocaleString()}</td>
+                  <td data-label="判拘役件數">{item.detention.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
