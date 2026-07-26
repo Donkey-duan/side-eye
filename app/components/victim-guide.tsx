@@ -1,18 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
-import type { SiteView, VictimView } from "../routes";
+import { viewPath, type SiteView, type VictimView } from "../routes";
 import FlowCarousel from "./flow-carousel";
 
 /**
  * 受害者專區的靜態內容：專區首頁、細節頁（安全計畫／證據保存／申復救濟／心理支持）、
  * 兩條流程頁，以及行動準備與權利時限。全國性平委員名冊因為帶有搜尋與分頁狀態，
- * 留在 SiteView。
+ * 留在 SiteView。站內導覽一律用 <Link>，讓每個主題頁在建置時就有真正的 <a href>。
  */
-export default function VictimGuide({ siteView, victimView, onOpen, pager }: {
+export default function VictimGuide({ siteView, victimView, pager }: {
   siteView: SiteView;
   victimView: VictimView;
-  onOpen: (view: VictimView) => void;
   pager: ReactNode;
 }) {
   return (
@@ -68,21 +68,21 @@ export default function VictimGuide({ siteView, victimView, onOpen, pager }: {
             <p>下面每一張是一個主題的詳細說明。號碼只是編號，不是要照順序執行——挑跟你現在處境相關的看就好，隨時可以回到這裡換一項。</p>
           </div>
           <nav className="campus-cards" aria-label="我是受害者專區選項">
-            <button onClick={() => onOpen("safety")}><b>01</b><span><strong>先做安全計畫</strong><small>對方得知後的跟蹤、施壓與暴力升高風險</small></span><i>→</i></button>
-            <button onClick={() => onOpen("evidence")}><b>02</b><span><strong>證據保存與送件</strong><small>原始檔、完整畫面、目錄與收件確認</small></span><i>→</i></button>
-            <button onClick={() => onOpen("police")}><b>03</b><span><strong>一般報警／刑事程序</strong><small>現場等待、筆錄、通知與長期偵查</small></span><i>→</i></button>
-            <button onClick={() => onOpen("campus")}><b>04</b><span><strong>校園性平申請</strong><small>受理、證據提示、訪談、結果與申復</small></span><i>→</i></button>
-            <button onClick={() => onOpen("appeal")}><b>05</b><span><strong>申復與後續救濟</strong><small>法定門檻、六款重大瑕疵與申復之後的申訴</small></span><i>→</i></button>
-            <button onClick={() => onOpen("preparation")}><b>06</b><span><strong>行動準備清單</strong><small>出發前逐項確認安全、證據與陪同</small></span><i>→</i></button>
-            <button onClick={() => onOpen("rights")}><b>07</b><span><strong>時限與權利提醒</strong><small>受理、調查、申復期限與可要求的協助</small></span><i>→</i></button>
-            <button onClick={() => onOpen("mental")}><b>08</b><span><strong>心理準備與支持</strong><small>面對等待、重述、質疑與程序後的耗竭</small></span><i>→</i></button>
-            <button onClick={() => onOpen("talent")}><b>09</b><span><strong>全國性平委員</strong><small>搜尋教育部公開調查專業人才名冊</small></span><i>→</i></button>
+            <Link href={viewPath("victim", "safety")}><b>01</b><span><strong>先做安全計畫</strong><small>對方得知後的跟蹤、施壓與暴力升高風險</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "evidence")}><b>02</b><span><strong>證據保存與送件</strong><small>原始檔、完整畫面、目錄與收件確認</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "police")}><b>03</b><span><strong>一般報警／刑事程序</strong><small>現場等待、筆錄、通知與長期偵查</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "campus")}><b>04</b><span><strong>校園性平申請</strong><small>受理、證據提示、訪談、結果與申復</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "appeal")}><b>05</b><span><strong>申復與後續救濟</strong><small>法定門檻、六款重大瑕疵與申復之後的申訴</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "preparation")}><b>06</b><span><strong>行動準備清單</strong><small>出發前逐項確認安全、證據與陪同</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "rights")}><b>07</b><span><strong>時限與權利提醒</strong><small>受理、調查、申復期限與可要求的協助</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "mental")}><b>08</b><span><strong>心理準備與支持</strong><small>面對等待、重述、質疑與程序後的耗竭</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "talent")}><b>09</b><span><strong>全國性平委員</strong><small>搜尋教育部公開調查專業人才名冊</small></span><i>→</i></Link>
           </nav>
         </div>
       </section>
 
       <section className={`victim-detail ${siteView !== "victim" || (victimView !== "safety" && victimView !== "evidence" && victimView !== "appeal" && victimView !== "mental") ? "victim-hidden" : ""}`} id="victim-detail">
-        <button className="back-to-hub" onClick={() => onOpen("home")}>← 回專區首頁</button>
+        <Link className="back-to-hub" href={viewPath("victim", "home")}>← 回專區首頁</Link>
         {victimView === "safety" && <div>
           <div className="section-heading"><div><span className="section-kicker">SAFETY FIRST</span><h2>報案或申請前，先評估風險會不會升高</h2></div><p>通知對方後，風險可能改變</p></div>
           <div className="danger-callout"><strong>如果你擔心對方得知後會堵人、跟蹤、傷害或殺害你</strong>
@@ -167,7 +167,7 @@ export default function VictimGuide({ siteView, victimView, onOpen, pager }: {
 
       <section className={`application-flow victim-${victimView} ${siteView !== "victim" || (victimView !== "police" && victimView !== "campus") ? "victim-hidden" : ""}`} id="application-flow">
         <div className="section-heading"><div><span className="section-kicker">CHOOSE YOUR PATH</span><h2>求助與申請流程</h2></div><p>兩條路可以同時進行，並非只能選一種</p></div>
-        <button className="back-to-hub" onClick={() => onOpen("home")}>← 回專區首頁</button>
+        <Link className="back-to-hub" href={viewPath("victim", "home")}>← 回專區首頁</Link>
         <div className="flow-track" id="police-flow"><h3>一般報警／刑事程序</h3><p>適用範圍不限校園。是否構成犯罪由檢警與法院依法判斷；報案不要求你先自行完成法律定性。</p></div>
         <FlowCarousel label="一般報警／刑事程序">
           <li><b>01</b><div><strong>報案前先更新安全計畫</strong><p>對方被警方通知後，跟蹤、堵人或施壓的風險可能改變。先決定安全住處、同行方式、校園／職場窗口及遇到對方時的撤離方法。</p><small>有立即危險撥 110；需要保護服務或社工協助可撥 113。不要為蒐證而單獨對質。</small></div></li>
@@ -204,12 +204,12 @@ export default function VictimGuide({ siteView, victimView, onOpen, pager }: {
       </section>
 
       <section className={`support-tools support-${victimView} ${siteView !== "victim" || (victimView !== "preparation" && victimView !== "rights") ? "victim-hidden" : ""}`} id="preparation">
-        <button className="back-to-hub" onClick={() => onOpen("home")}>← 回專區首頁</button>
+        <Link className="back-to-hub" href={viewPath("victim", "home")}>← 回專區首頁</Link>
         <div className="support-grid">
           <div><span className="section-kicker">PREPARATION</span><h2>每次行動前的準備清單</h2><ul><li><b>安全：</b>確認對方是否可能因通知而升高暴力；安排同行、交通、住宿與緊急聯絡人</li><li><b>證據：</b>原始檔另存、完整截圖、時間軸、頁碼目錄、附件清單與安全備份</li><li><b>等待：</b>帶證件、藥物、水、充電器；預留數小時及結束後休息時間</li><li><b>陳述：</b>分清楚確定、約略、不記得與後來想起；不為追求一致而猜測</li><li><b>收件：</b>每次提交都要日期與回條，核對承辦人實際收到的附件</li><li><b>紀錄：</b>保存案號、承辦人、電話、公文、傳票、延長通知與下一期限</li><li><b>身心：</b>安排陪同、就醫或諮商；寫下程序後可能出現的觸發反應與照顧方式</li></ul></div>
           <div id="rights-timeline"><span className="section-kicker">RIGHTS & TIMELINE</span><h2>性平期限與程序檢核</h2><ul><li><b>無申請期限：</b>校園性別事件沒有追訴期，不像刑事有時效限制；事隔多年、已畢業或對方已離職，仍可提出調查申請。惟行為人已非原校師生時管轄可能移轉，且越晚提出證據越難保全。</li><li><b>3 日：</b>收件單位原則上將事證資料交付性平會調查處理</li><li><b>20 日：</b>接獲申請或檢舉後，書面通知是否受理</li><li><b>不受理申復：</b>逾期未通知或收到不受理通知次日起 20 日內提出</li><li><b>調查 2 個月：</b>必要時可延長兩次，每次不超過一個月，且應通知</li><li><b>結果申復：</b>收到處理結果書面通知次日起 30 日內提出</li><li><b>申復門檻：</b>須有調查程序重大瑕疵，或足以影響認定的新事實、新證據</li><li><b>再提申訴：</b>不服申復決定，於決定書送達次日起 30 日內提起申訴</li><li><b>重啟調查：</b>申復有理由而重新調查者，一樣適用二個月的調查期限</li><li><b>充分陳述：</b>調查應給雙方充分陳述與答辯機會，並避免重複詢問</li><li><b>必要協助：</b>可要求受教權／工作權、心理、法律、課業、經濟與安全措施</li><li><b>司法並行：</b>性平調查不受刑事程序是否進行及結果影響</li></ul></div>
         </div>
-        <div className="official-links"><a href="https://mohw.gov.tw/SS/cp-4530-63643-204.html" target="_blank" rel="noreferrer">衛福部性侵害求助指引 ↗</a><a href="https://dep.mohw.gov.tw/dops/np-1183-105.html" target="_blank" rel="noreferrer">113 保護專線 ↗</a><a href="https://www.gender.edu.tw/web/index.php/m7/m7_02_01_index" target="_blank" rel="noreferrer">教育部申請書與流程圖 ↗</a><a href="https://edu.law.moe.gov.tw/LawContent.aspx?id=FL030508" target="_blank" rel="noreferrer">性別平等教育法 ↗</a></div>
+        <div className="official-links"><a href="https://mohw.gov.tw/SS/cp-4530-63643-204.html" target="_blank" rel="noreferrer">衛福部性侵害求助指引 ↗<span className="sr-only">（另開新分頁）</span></a><a href="https://dep.mohw.gov.tw/dops/np-1183-105.html" target="_blank" rel="noreferrer">113 保護專線 ↗<span className="sr-only">（另開新分頁）</span></a><a href="https://www.gender.edu.tw/web/index.php/m7/m7_02_01_index" target="_blank" rel="noreferrer">教育部申請書與流程圖 ↗<span className="sr-only">（另開新分頁）</span></a><a href="https://edu.law.moe.gov.tw/LawContent.aspx?id=FL030508" target="_blank" rel="noreferrer">性別平等教育法 ↗<span className="sr-only">（另開新分頁）</span></a></div>
         {pager}
       </section>
     </>

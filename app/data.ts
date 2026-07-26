@@ -333,11 +333,13 @@ function isProfile(value: unknown): value is OutcomeProfile {
   if (!value || typeof value !== "object") return false;
   const profile = value as OutcomeProfile;
   return typeof profile.total === "number"
+    && !!profile.outcomes && typeof profile.outcomes === "object"
     && !!profile.counts && typeof profile.counts.substantive === "number"
     && typeof profile.counts.convicted === "number"
     && typeof profile.counts.closedBeforeMerits === "number"
     && typeof profile.counts.probation === "number"
     && isRate(profile.conviction)
+    && isRate(profile.acquittal)
     && isRate(profile.closedBeforeMerits)
     && isRate(profile.probation);
 }
@@ -386,4 +388,31 @@ function sentenceMap(input: unknown): Record<string, SentenceProfile> {
       return !!item && typeof item.convicted === "number" && isRate(item.probation);
     }),
   ) as Record<string, SentenceProfile>;
+}
+
+/**
+ * talent.json 一樣是與程式碼分開部署的靜態檔。姓名、服務單位與職稱是站上會直接
+ * 顯示與拿來搜尋比對的欄位，缺一個就逐筆濾除；其餘欄位不影響顯示正確性，缺了給預設值即可。
+ * 整份資料結構不對（例如 records 不是陣列）就退回空名冊，不讓搜尋與分頁在殘缺資料上出錯。
+ */
+export function normalizeTalent(input: unknown): TalentData {
+  const raw = (input ?? {}) as Partial<TalentData>;
+  const records = Array.isArray(raw.records)
+    ? raw.records
+        .filter((item): item is TalentItem =>
+          !!item && typeof item.name === "string" && typeof item.unit === "string" && typeof item.title === "string")
+        .map((item) => ({
+          name: item.name,
+          unit: item.unit,
+          title: item.title,
+          gender: typeof item.gender === "string" ? item.gender : "",
+          page: typeof item.page === "number" ? item.page : 0,
+        }))
+    : [];
+  return {
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : "",
+    sourceUrl: typeof raw.sourceUrl === "string" ? raw.sourceUrl : "",
+    notice: typeof raw.notice === "string" ? raw.notice : "",
+    records,
+  };
 }

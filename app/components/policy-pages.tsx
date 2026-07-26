@@ -1,13 +1,14 @@
 "use client";
 
-import { CONTACT_EMAIL, CORRECTION_FORM_URL, FEEDBACK_FORM_URL, type SiteView } from "../routes";
+import Link from "next/link";
+import { CONTACT_EMAIL, CORRECTION_FORM_URL, FEEDBACK_FORM_URL, viewPath, type SiteView } from "../routes";
 
 /** 隱私政策、資料更正與下架、資料授權。純靜態內容，只從頁尾進入。 */
-export default function PolicyPages({ siteView, onHome }: { siteView: SiteView; onHome: () => void }) {
+export default function PolicyPages({ siteView }: { siteView: SiteView }) {
   return (
     <>
       <section className={`policy ${siteView !== "faq" ? "site-hidden" : ""}`} id="faq">
-        <button className="back-to-hub" onClick={() => onHome()}>← 回首頁</button>
+        <Link className="back-to-hub" href={viewPath("home")}>← 回首頁</Link>
         <div className="section-heading"><div><span className="section-kicker">FAQ</span><h2>常見問題</h2></div><p>關於本站的定位、取捨與界線</p></div>
         <div className="policy-body faq-list">
           <details className="faq-item">
@@ -53,7 +54,7 @@ export default function PolicyPages({ siteView, onHome }: { siteView: SiteView; 
       </section>
 
       <section className={`policy ${siteView !== "privacy" ? "site-hidden" : ""}`} id="privacy">
-        <button className="back-to-hub" onClick={() => onHome()}>← 回首頁</button>
+        <Link className="back-to-hub" href={viewPath("home")}>← 回首頁</Link>
         <div className="section-heading"><div><span className="section-kicker">PRIVACY</span><h2>隱私政策</h2></div><p>不設帳號 · 不追蹤 · 不投放廣告</p></div>
         <div className="policy-body">
           <h3>本站不收集個人資料</h3>
@@ -74,7 +75,7 @@ export default function PolicyPages({ siteView, onHome }: { siteView: SiteView; 
       </section>
 
       <section className={`policy ${siteView !== "corrections" ? "site-hidden" : ""}`} id="corrections">
-        <button className="back-to-hub" onClick={() => onHome()}>← 回首頁</button>
+        <Link className="back-to-hub" href={viewPath("home")}>← 回首頁</Link>
         <div className="section-heading"><div><span className="section-kicker">CORRECTIONS</span><h2>資料更正與下架</h2></div><p>可以更正什麼、怎麼提出</p></div>
         <div className="policy-body">
           <h3>本站沒有個案下架需求</h3>
@@ -96,7 +97,7 @@ export default function PolicyPages({ siteView, onHome }: { siteView: SiteView; 
           {CORRECTION_FORM_URL
             ? <>
                 <p>請填寫回報表單，說明你認為有誤的位置、正確的內容，以及可供查證的原始來源。收到後會核對原始機關頁面，確認屬實即更正，並保留異動紀錄。表單不強制留下聯絡方式，可以匿名回報。</p>
-                <a className="form-button" href={CORRECTION_FORM_URL} target="_blank" rel="noreferrer">開啟資料更正與回報表單 <span>↗</span></a>
+                <a className="form-button" href={CORRECTION_FORM_URL} target="_blank" rel="noreferrer">開啟資料更正與回報表單 <span>↗</span><span className="sr-only">（另開新分頁）</span></a>
               </>
             : CONTACT_EMAIL
               ? <p>請寄信至 <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>，說明你認為有誤的位置、正確的內容，以及可供查證的原始來源。收到後我們會核對原始機關頁面，確認屬實即更正，並保留異動紀錄。</p>
@@ -108,13 +109,13 @@ export default function PolicyPages({ siteView, onHome }: { siteView: SiteView; 
           {FEEDBACK_FORM_URL && <>
             <h3>只是想分享使用心得</h3>
             <p>如果你不是要回報錯誤，而是想單純說說使用感受、覺得哪裡有幫助或哪裡可以更好，這裡有另一份意見表單。不必留下聯絡方式。</p>
-            <a className="form-button secondary" href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer">開啟意見反饋表單 <span>↗</span></a>
+            <a className="form-button secondary" href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer">開啟意見反饋表單 <span>↗</span><span className="sr-only">（另開新分頁）</span></a>
           </>}
         </div>
       </section>
 
       <section className={`policy ${siteView !== "licence" ? "site-hidden" : ""}`} id="licence">
-        <button className="back-to-hub" onClick={() => onHome()}>← 回首頁</button>
+        <Link className="back-to-hub" href={viewPath("home")}>← 回首頁</Link>
         <div className="section-heading"><div><span className="section-kicker">LICENCE</span><h2>資料授權</h2></div><p>各來源的授權條款與引用方式</p></div>
         <div className="policy-body">
           <h3>政府開放資料</h3>

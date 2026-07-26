@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://Donkey-duan.github.io/side-eye/sitemap.xml

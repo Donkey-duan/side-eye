@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   JUDGE_MIN_SAMPLE, fraction, judgeAcquittalRate, judgmentUrl, monthLabel, monthsLabel, percent, spanLabel,
   type CaseBrief, type ChargeProfile, type JudicialData, type JudgeDetail, type JudgeSummary, type OutcomeProfile,
 } from "../data";
-import { JUDGE_TABS, type JudgeView } from "../routes";
+import { JUDGE_TABS, viewPath, type JudgeView } from "../routes";
 
 /** 一筆案件：案由為說明，可點的是案號——與「以案號查閱」的敘述一致，也看得出可點。 */
 function CaseItem({ item }: { item: CaseBrief }) {
@@ -14,6 +15,7 @@ function CaseItem({ item }: { item: CaseBrief }) {
       <span className="case-title">{item.title}{item.summary ? "・簡易" : ""}</span>
       <a className="case-link" href={judgmentUrl(item.jid)} target="_blank" rel="noreferrer">
         {item.caseNumber || "查裁判書"} <span aria-hidden="true">↗</span>
+        <span className="sr-only">（另開新分頁）</span>
       </a>
     </li>
   );
@@ -69,8 +71,25 @@ function OutcomeBar({ profile, labels }: { profile: OutcomeProfile; labels: Reco
   );
 }
 
-export default function JudicialReport({ data, view, onTab }: {
-  data: JudicialData; view: JudgeView; onTab: (view: JudgeView) => void;
+/**
+ * judicial-judges.json 也是與程式碼分開部署的靜態檔，只做型別斷言的話，缺欄位會在
+ * charges.length、acquittedCases、guiltyCases 這些直接存取的地方讓整個展開動作炸掉。
+ * 這裡只確認 judges 是陣列、逐筆補上三個陣列欄位的預設值，缺一個就當作沒有這部分明細。
+ */
+function normalizeJudgeDetails(input: unknown): JudgeDetail[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((judge): judge is JudgeDetail => !!judge && typeof judge.name === "string")
+    .map((judge) => ({
+      ...judge,
+      charges: Array.isArray(judge.charges) ? judge.charges : [],
+      acquittedCases: Array.isArray(judge.acquittedCases) ? judge.acquittedCases : [],
+      guiltyCases: Array.isArray(judge.guiltyCases) ? judge.guiltyCases : [],
+    }));
+}
+
+export default function JudicialReport({ data, view, loading }: {
+  data: JudicialData; view: JudgeView; loading: boolean;
 }) {
   const [details, setDetails] = useState<JudgeDetail[] | null>(null);
   const [judgeQuery, setJudgeQuery] = useState("");
@@ -125,14 +144,17 @@ export default function JudicialReport({ data, view, onTab }: {
       const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
       const response = await fetch(`${base}/data/judicial-judges.json`);
       if (!response.ok) return;
-      const payload = await response.json() as { judges?: JudgeDetail[] };
-      setDetails(payload.judges ?? []);
+      const payload = await response.json() as { judges?: unknown };
+      setDetails(normalizeJudgeDetails(payload.judges));
     } catch {
       // 取不到時仍會顯示件數，只是展不開案件清單
     }
   }
 
   if (!data.overall || data.coverage.judgments === 0) {
+    if (loading) {
+      return <p className="sync-window"><b>正在載入裁判資料…</b></p>;
+    }
     return (
       <p className="sync-window">
         <b>尚未取得裁判資料</b>
@@ -181,14 +203,14 @@ export default function JudicialReport({ data, view, onTab }: {
         </div>
         <nav className="judge-tabs" aria-label="司法現況四個分區">
           {JUDGE_TABS.map((tab) => (
-            <button key={tab.view} className={view === tab.view ? "active" : ""}
-              aria-pressed={view === tab.view} onClick={() => onTab(tab.view)}>
+            <Link key={tab.view} className={view === tab.view ? "active" : ""}
+              href={viewPath("judges", "home", tab.view)} aria-current={view === tab.view ? "page" : undefined}>
               <span className="judge-tab-text">
                 <strong>{tab.label}</strong>
                 <small>{tab.hint}</small>
               </span>
               <span className="judge-tab-go" aria-hidden="true">→</span>
-            </button>
+            </Link>
           ))}
         </nav>
         {view === "home" && (
@@ -199,7 +221,7 @@ export default function JudicialReport({ data, view, onTab }: {
       {view === "results" && <>
       <div className="judicial-block" id="judge-results">
         <div className="chart-top">
-          <span>你的情況歷來怎麼判</span>
+          <h3>你的情況歷來怎麼判</h3>
           <small>點選罪名可切換下方的結果分布</small>
         </div>
         <div className="offence-filter">
@@ -293,7 +315,7 @@ export default function JudicialReport({ data, view, onTab }: {
 
       {view === "sentencing" && (
       <div className="judicial-block" id="judge-sentencing">
-        <div className="chart-top"><span>判了多重</span><small>僅定罪案件，依主文論罪分組</small></div>
+        <div className="chart-top"><h3>判了多重</h3><small>僅定罪案件，依主文論罪分組</small></div>
         <p className="judicial-note">
           這張表用的分組跟上一張不同。上面依案由分組，因為案由在起訴時就決定，
           不受判決結果影響；這裡改依主文實際論的罪分組，分得比較細，但只有定罪的判決
@@ -342,7 +364,7 @@ export default function JudicialReport({ data, view, onTab }: {
 
       {view === "levels" && (
       <div className="judicial-block" id="judge-levels">
-        <div className="chart-top"><span>上訴之後會怎樣</span><small>第一、二、三審分開統計，每一審內按最常見的結果排在前</small></div>
+        <div className="chart-top"><h3>上訴之後會怎樣</h3><small>第一、二、三審分開統計，每一審內按最常見的結果排在前</small></div>
         <div className="level-grid">
           {["first", "second", "third"].map((level) => {
             const profile = data.byLevel[level];
@@ -373,7 +395,7 @@ export default function JudicialReport({ data, view, onTab }: {
       {view === "panel" && (
       <div className="judicial-block" id="judge-panel">
         <div className="chart-top">
-          <span>各法官的判決結果</span>
+          <h3>各法官的判決結果</h3>
           <small>{data.judges.length.toLocaleString()} 位具名法官</small>
         </div>
         <p className="judicial-note">
@@ -406,7 +428,7 @@ export default function JudicialReport({ data, view, onTab }: {
             onChange={(event) => { setEnoughOnly(event.target.checked); setJudgePage(1); }} />
           只看通常程序實體案件達 {JUDGE_MIN_SAMPLE} 件以上的法官
         </label>
-        <p className="judge-count-line">
+        <p className="judge-count-line" aria-live="polite">
           {judgeQuery
             ? `找到 ${sortedJudges.length.toLocaleString()} 位符合「${judgeQuery}」`
             : `共 ${sortedJudges.length.toLocaleString()} 位，每頁 ${JUDGE_PAGE_SIZE} 位`}
@@ -481,7 +503,7 @@ export default function JudicialReport({ data, view, onTab }: {
           <span>看其他分區</span>
           <div>
             {JUDGE_TABS.filter((tab) => tab.view !== view).map((tab) => (
-              <button key={tab.view} onClick={() => onTab(tab.view)}>{tab.label} →</button>
+              <Link key={tab.view} href={viewPath("judges", "home", tab.view)}>{tab.label} →</Link>
             ))}
           </div>
         </nav>

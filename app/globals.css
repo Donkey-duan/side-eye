@@ -76,6 +76,55 @@ summary {
 }
 
 /* ------------------------------------------------------------
+   視覺隱藏，僅螢幕報讀器可讀。用於 target="_blank" 的「另開新分頁」提示、
+   以及跳到主要內容的 skip link——平時不佔版面，鍵盤聚焦時才需要現形。
+   ------------------------------------------------------------ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sr-only:focus,
+.sr-only:focus-visible {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* skip link 疊在畫面最上層，不把 header 往下推 */
+.skip-link:focus,
+.skip-link:focus-visible {
+  position: fixed;
+  top: var(--sp-3);
+  left: var(--sp-3);
+  z-index: 100;
+  width: auto;
+  height: auto;
+  padding: var(--sp-3) var(--sp-5);
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 2px;
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
+}
+
+/* ------------------------------------------------------------
    共用文字樣式
    ------------------------------------------------------------ */
 
@@ -135,6 +184,7 @@ summary {
 }
 
 .back-to-hub {
+  display: inline-block;
   border: 0;
   border-bottom: 2px solid var(--ink);
   background: transparent;
@@ -222,6 +272,7 @@ summary {
 
 .method-link {
   border: 0;
+  border-bottom: 2px solid transparent;
   background: none;
   cursor: pointer;
   padding: var(--sp-2) 0;
@@ -231,6 +282,12 @@ summary {
 .topbar nav a:hover,
 .method-link:hover {
   color: var(--link);
+}
+
+/* 目前所在專區：底線比照 back-to-hub 的做法，低調不喧賓奪主 */
+.method-link.active {
+  color: var(--link);
+  border-bottom-color: var(--link);
 }
 
 .report-button {
@@ -296,7 +353,9 @@ summary {
   z-index: 30;
 }
 
-.campus-menu > div button {
+.campus-menu > div button,
+.campus-menu > div a {
+  display: block;
   padding: var(--sp-3);
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -306,11 +365,13 @@ summary {
   font-size: var(--fs-small);
 }
 
-.campus-menu > div button:last-child {
+.campus-menu > div button:last-child,
+.campus-menu > div a:last-child {
   border-bottom: 0;
 }
 
-.campus-menu > div button:hover {
+.campus-menu > div button:hover,
+.campus-menu > div a:hover {
   background: var(--card);
   color: var(--link);
 }
@@ -413,7 +474,9 @@ summary {
   padding-bottom: var(--sp-1);
 }
 
-.mobile-menu > div button {
+.mobile-menu > div button,
+.mobile-menu > div a {
+  display: block;
   border: 0;
   background: transparent;
   text-align: left;
@@ -426,13 +489,15 @@ summary {
 
 /* 群組內的子項一項一行、由上到下對齊；button 預設是 inline-block，不設 block
    會橫向流動擠成一團。略縮排看得出是大項下的項目 */
-.menu-group > button {
+.menu-group > button,
+.menu-group > a {
   display: block;
   width: 100%;
   padding-left: var(--sp-5);
 }
 
-.mobile-menu > div button:active {
+.mobile-menu > div button:active,
+.mobile-menu > div a:active {
   background: var(--card);
 }
 
@@ -739,7 +804,8 @@ summary {
   gap: var(--sp-3);
 }
 
-.portal-grid button {
+.portal-grid button,
+.portal-grid a {
   min-height: 180px;
   border: 1px solid var(--line);
   background: var(--card);
@@ -752,7 +818,8 @@ summary {
   gap: var(--sp-2) var(--sp-4);
 }
 
-.portal-grid button:hover {
+.portal-grid button:hover,
+.portal-grid a:hover {
   border-color: var(--link);
   transform: translateY(var(--lift));
 }
@@ -884,7 +951,8 @@ summary {
   gap: var(--sp-3);
 }
 
-.explore-more button {
+.explore-more button,
+.explore-more a {
   display: grid;
   gap: var(--sp-1);
   align-content: start;
@@ -896,7 +964,8 @@ summary {
   transition: border-color var(--dur) var(--ease);
 }
 
-.explore-more button:hover {
+.explore-more button:hover,
+.explore-more a:hover {
   border-color: var(--link);
 }
 
@@ -933,7 +1002,9 @@ summary {
   gap: var(--sp-2);
 }
 
-.explore-nav button {
+.explore-nav button,
+.explore-nav a {
+  display: block;
   border: 1px solid var(--ink);
   background: transparent;
   padding: var(--sp-3) var(--sp-4);
@@ -944,7 +1015,8 @@ summary {
   text-align: center;
 }
 
-.explore-nav button:hover {
+.explore-nav button:hover,
+.explore-nav a:hover {
   background: var(--ink);
   color: var(--paper);
 }
@@ -1132,7 +1204,7 @@ summary {
   justify-content: flex-end;
   align-items: center;
   gap: var(--sp-2);
-  min-width: 22px;
+  min-width: 24px;
   border: 0;
   background: transparent;
   padding: 0;
@@ -1702,6 +1774,15 @@ summary {
   font-size: var(--fs-body);
 }
 
+/* 四個分區的主標題原本是純 <span>，現在改為 <h3> 承載語意層級，
+   這裡把瀏覽器預設的粗體、留白與字級蓋掉，版型維持與改動前一致 */
+.chart-top h3 {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+}
+
 .chart-top small {
   font-family: var(--font-sans);
   color: var(--muted);
@@ -1998,7 +2079,8 @@ summary {
   gap: var(--sp-3);
 }
 
-.campus-cards button {
+.campus-cards button,
+.campus-cards a {
   display: grid;
   grid-template-columns: 42px 1fr auto;
   align-items: center;
@@ -2010,7 +2092,8 @@ summary {
   cursor: pointer;
 }
 
-.campus-cards button:hover {
+.campus-cards button:hover,
+.campus-cards a:hover {
   border-color: var(--link);
   transform: translateY(var(--lift));
 }
@@ -2414,7 +2497,11 @@ summary {
   gap: var(--sp-2);
 }
 
+/* 圓點視覺維持 12px，但用 ::after 疊一個不影響版面排列的透明熱區，
+   把實際可點範圍撐到 24×24px；因為熱區用 absolute 疊加，不吃版面空間，
+   .flow-dots 原本的 gap 與圓點間距完全不受影響。 */
 .flow-dots button {
+  position: relative;
   width: 12px;
   height: 12px;
   padding: 0;
@@ -2422,6 +2509,13 @@ summary {
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
+}
+
+.flow-dots button::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
 }
 
 .flow-dots button.is-current {
@@ -2649,6 +2743,7 @@ summary {
 }
 
 .inline-link {
+  display: inline-block;
   border: 0;
   border-bottom: 2px solid var(--link);
   background: transparent;
@@ -2953,6 +3048,13 @@ summary {
 .news-result-meta span {
   font-size: var(--fs-small);
   color: var(--muted);
+}
+
+/* 清單上方的內容提醒，樣式比照 .search-note 等次要說明文字 */
+.news-content-note {
+  font-size: var(--fs-small);
+  color: var(--muted);
+  margin: 0 0 var(--sp-4);
 }
 
 .live-news-grid {
@@ -3590,7 +3692,8 @@ footer > div:last-child a:hover {
 
   /* 手機上卡片依內容決定高度，不留固定的 180px 空高——那個空高在單欄、
      內容又少的情況下會空一大塊，看起來像跑版 */
-  .portal-grid button {
+  .portal-grid button,
+  .portal-grid a {
     min-height: 0;
     grid-template-rows: auto auto;
     padding: var(--sp-4) var(--sp-5);
@@ -4034,7 +4137,8 @@ footer > div:last-child a:hover {
   gap: var(--sp-2);
 }
 
-.judge-tabs button {
+.judge-tabs button,
+.judge-tabs a {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -4059,36 +4163,43 @@ footer > div:last-child a:hover {
   line-height: 1;
 }
 
-.judge-tabs button.active .judge-tab-go {
+.judge-tabs button.active .judge-tab-go,
+.judge-tabs a.active .judge-tab-go {
   color: var(--paper);
 }
 
-.judge-tabs button strong {
+.judge-tabs button strong,
+.judge-tabs a strong {
   font-family: var(--font-serif);
   font-size: var(--fs-body);
   color: var(--ink);
 }
 
-.judge-tabs button small {
+.judge-tabs button small,
+.judge-tabs a small {
   font-size: var(--fs-caption);
   line-height: var(--lh-snug);
   color: var(--muted);
 }
 
-.judge-tabs button:hover {
+.judge-tabs button:hover,
+.judge-tabs a:hover {
   border-color: var(--ink);
 }
 
-.judge-tabs button.active {
+.judge-tabs button.active,
+.judge-tabs a.active {
   background: var(--ink);
   border-color: var(--ink);
 }
 
-.judge-tabs button.active strong {
+.judge-tabs button.active strong,
+.judge-tabs a.active strong {
   color: var(--paper);
 }
 
-.judge-tabs button.active small {
+.judge-tabs button.active small,
+.judge-tabs a.active small {
   color: color-mix(in srgb, var(--paper) 72%, transparent);
 }
 
@@ -4112,7 +4223,9 @@ footer > div:last-child a:hover {
   gap: var(--sp-2);
 }
 
-.judge-pager button {
+.judge-pager button,
+.judge-pager a {
+  display: block;
   border: 1px solid var(--ink);
   background: transparent;
   padding: var(--sp-4);
@@ -4123,7 +4236,8 @@ footer > div:last-child a:hover {
   color: var(--ink);
 }
 
-.judge-pager button:hover {
+.judge-pager button:hover,
+.judge-pager a:hover {
   background: var(--ink);
   color: var(--paper);
 }

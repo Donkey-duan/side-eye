@@ -24,6 +24,22 @@ test("首頁靜態產出包含站台主要內容", async () => {
   assert.match(html, /搞懂性平事件的數據/);
 });
 
+test("首頁含跳到主要內容的 skip link，且 header／footer 與 main 是平行的 landmark", async () => {
+  const html = await page("/");
+  // skip link 必須是可聚焦的連結，指向 main 的 id
+  assert.match(html, /<a[^>]*href="#main-content"[^>]*>跳到主要內容<\/a>/, "缺少跳到主要內容的 skip link");
+
+  // header 與 footer 不應巢狀在 main 裡，否則 landmark 會失效
+  const headerClose = html.indexOf("</header>");
+  const mainOpen = html.indexOf("<main");
+  const mainClose = html.indexOf("</main>");
+  const footerOpen = html.indexOf("<footer");
+  assert.ok(headerClose > -1 && mainOpen > -1 && mainClose > -1 && footerOpen > -1,
+    "缺少 header／main／footer 標籤");
+  assert.ok(headerClose < mainOpen, "header 應在 main 開始前結束，不應巢狀在 main 內");
+  assert.ok(mainClose < footerOpen, "footer 應在 main 結束後才開始，不應巢狀在 main 內");
+});
+
 test("每個專區都有可分享的網址與各自的 metadata", async () => {
   const cases = [
     ["/", "台灣性別事件公共資訊平台", /class="hero /],
@@ -65,6 +81,29 @@ test("每個專區都有可分享的網址與各自的 metadata", async () => {
   assert.match(corrections, /href="https:\/\/forms\.gle\/[^"]+"[^>]*>開啟資料更正與回報表單/,
     "更正頁缺少回報表單按鈕");
   assert.doesNotMatch(corrections, /回報管道建置中/, "表單已設定，不應再顯示建置中");
+});
+
+test("首頁的站內導覽是真正的 <a href>，搜尋引擎才能從首頁爬到內頁", async () => {
+  // 正式站有 basePath（/side-eye）前綴，本機建置沒有；用 [^"]* 兩種都容許，
+  // 只要求是指向這些站內路徑的真連結，而不是 <button onClick> 的死連結。
+  const home = await page("/");
+  assert.match(home, /href="[^"]*\/victim\/"/, "首頁缺少可被爬到的 /victim/ 連結");
+  assert.match(home, /href="[^"]*\/judges\/"/, "首頁缺少可被爬到的 /judges/ 連結");
+  assert.match(home, /href="[^"]*\/sources\/"/, "首頁缺少可被爬到的 /sources/ 連結");
+});
+
+test("司法現況四個分區的視覺主標題是語意標題 <h3>，不是純 <span>", async () => {
+  // 圖表區要等瀏覽器抓回 judicial.json 才渲染，預渲染的 HTML 只有載入提示，
+  // 所以這裡對元件原始碼斷言，而不是對 out/ 的產出。
+  const source = await readFile(new URL("../app/components/judicial-report.tsx", import.meta.url), "utf8");
+  for (const heading of ["你的情況歷來怎麼判", "判了多重", "上訴之後會怎樣", "各法官的判決結果"]) {
+    assert.match(source, new RegExp(`<h3>${heading}</h3>`), `judicial-report.tsx 缺少 <h3>${heading}</h3>`);
+  }
+});
+
+test("sitemap.xml 已產生，並列出站內頁面供搜尋引擎索引", async () => {
+  const xml = await source("out/sitemap.xml");
+  assert.match(xml, /<loc>[^<]*\/victim\/<\/loc>/, "sitemap 缺少 /victim/ 的網址");
 });
 
 test("受害者專區涵蓋安全、證據、程序、申復與復原", async () => {
@@ -126,9 +165,32 @@ test("資料異常時工作流程會失敗而不是安靜地繼續發布", async
   assert.match(pipeline, /一則新聞都解析不出來/, "缺少解析失效的檢查");
   assert.match(pipeline, /卻沒有 JUDICIAL_API_USER/, "缺少開放時段內憑證缺失的檢查");
 
+  // readPrevious()：只有 404（站台尚未發布過）能靜默；fetch 拋例外或非 2xx 非 404
+  // 的回應都代表網站明明存在卻讀不到，必須走健康檢查，否則索引會悄悄停止累積
+  assert.match(pipeline, /response\.status === 404\) return null/, "404 未被當成『尚未發布』的靜默狀態");
+  assert.match(pipeline, /網站本身存在但這個檔案讀不到/, "非 404 的失敗回應未觸發健康檢查");
+  assert.match(pipeline, /可能是網路暫時性問題，也可能是回應內容已經不是合法 JSON/, "fetch 拋例外未觸發健康檢查");
+
+  // preserve()：records 為空代表種子與已發布的前一版同時失敗，是真異常，
+  // 不能無聲讓三個裁判資料檔從部署產物裡消失
+  assert.match(pipeline, /但既有裁判資料是空的，三個裁判資料檔本次將不會被寫入/, "既有資料為空時未示警");
+  assert.match(pipeline, /CI 上一定會設定 JUDICIAL_SOURCE_URL 種子/, "未說明為何空資料視為異常而非正常狀態");
+
   // 區分「還沒設定來源」與「設定了但取不到」：只有後者該讓 CI 失敗
   const talent = await source("scripts/fetch-talent.mjs");
   assert.match(talent, /SOURCE_URL && process\.env\.CI === "true"/, "設定的名冊來源失效時 CI 應失敗");
+});
+
+test("同步腳本上傳裁判種子前會比對新舊筆數，裁判資料只增不減", async () => {
+  // --clobber 會直接覆蓋 Release 上的權威種子，筆數變少多半代表這次同步有問題
+  // （例如本機環境或憑證異常），而不是司法院真的整批下架，因此上傳前要先擋下來，
+  // 並提供人工確認後可跳過的方式，而不是讓錯誤的本機執行悄悄毀掉既有累積。
+  const sync = await source("scripts/sync-judicial.mjs");
+  assert.match(sync, /count < previousCount/, "缺少新舊筆數的比較");
+  assert.match(sync, /少於目前種子的/, "缺少筆數變少時的中止訊息");
+  assert.match(sync, /process\.env\.SYNC_FORCE/, "缺少可跳過檢查的環境變數");
+  assert.match(sync, /process\.exit\(1\)/, "筆數變少且未強制跳過時應中止，不能照常上傳");
+  assert.match(sync, /gh release upload .* --clobber/, "檢查通過後仍應照常覆蓋種子");
 });
 
 test("執行時抓來的資料結構不符時要退回空狀態，而不是讓整站崩潰", async () => {
@@ -189,6 +251,71 @@ test("執行時抓來的資料結構不符時要退回空狀態，而不是讓�
   assert.equal(valid.overall?.counts.substantive, 2);
   assert.equal(valid.byCharge.sexualAutonomy.label, "妨害性自主");
   assert.equal(valid.coverage.judgments, 2);
+
+  // judicial-report.tsx 直接讀 profile.outcomes[key]、profile.acquittal.rate 與
+  // profile.outcomes.upheld，完全沒有防護。缺 outcomes 或 acquittal 任一個
+  // 都要讓 isProfile 判定為沒有資料，而不是留著半殘的統計讓畫面去讀。
+  const missingOutcomes = normalizeJudicial({
+    overall: {
+      total: 2,
+      counts: profile.counts,
+      conviction: profile.conviction,
+      acquittal: profile.acquittal,
+      closedBeforeMerits: profile.closedBeforeMerits,
+      probation: profile.probation,
+      prisonMonths: null,
+      lifeOrDeath: 0,
+    },
+  });
+  assert.equal(missingOutcomes.overall, null, "缺 outcomes 的統計應被視為沒有資料");
+
+  const missingAcquittal = normalizeJudicial({
+    overall: {
+      total: 2,
+      outcomes: profile.outcomes,
+      counts: profile.counts,
+      conviction: profile.conviction,
+      closedBeforeMerits: profile.closedBeforeMerits,
+      probation: profile.probation,
+      prisonMonths: null,
+      lifeOrDeath: 0,
+    },
+  });
+  assert.equal(missingAcquittal.overall, null, "缺 acquittal 的統計應被視為沒有資料");
+});
+
+test("talent.json 執行期驗證：缺 name／unit／title 的紀錄濾除，結構不符退回空名冊", async () => {
+  // site-view.tsx 過去是 load<TalentData>(...) 直接 setTalentData，沒有任何檢查。
+  // 名冊也是分開部署的靜態檔，比照 normalizeJudicial 補上輕量驗證。
+  const { normalizeTalent } = await import("../app/data.ts");
+
+  const partial = normalizeTalent({
+    updatedAt: "1150701",
+    records: [
+      { name: "王小明", unit: "臺灣大學", title: "副教授" },
+      { name: "李小華", unit: "", title: 123 },
+      { unit: "成功大學", title: "教授" },
+    ],
+  });
+  assert.equal(partial.records.length, 1, "缺 name/unit/title 任一字串欄位的紀錄應被濾除");
+  assert.equal(partial.records[0].name, "王小明");
+  assert.equal(partial.records[0].gender, "", "缺的欄位應給預設值而不是 undefined");
+  assert.equal(partial.updatedAt, "1150701");
+
+  for (const broken of [null, undefined, {}, { records: "not-an-array" }, { records: [1, "x", null] }]) {
+    const result = normalizeTalent(broken);
+    assert.ok(Array.isArray(result.records), "records 必須恆為陣列");
+    assert.equal(result.records.length, 0);
+    assert.equal(result.updatedAt, "");
+  }
+});
+
+test("法官明細檔缺陣列欄位時退回空陣列，而不是讓法官清單整段炸掉", async () => {
+  // judicial-judges.json 過去只做型別斷言，detail.charges.length、acquittedCases、
+  // guiltyCases 卻是直接存取，缺欄位會在展開法官清單時整段丟例外。
+  const code = await source("app/components/judicial-report.tsx");
+  assert.match(code, /function normalizeJudgeDetails/, "缺少法官明細的執行期驗證");
+  assert.match(code, /setDetails\(normalizeJudgeDetails\(payload\.judges\)\)/, "loadDetails 未套用明細驗證");
 });
 
 test("司法統計的方法與限制寫在站上，而不是只存在於程式碼裡", async () => {
