@@ -50,10 +50,18 @@ const PRIVATE_FIELDS = ["disposition"];
  * judicial-judges.json 是各法官的案件清單，只有進到法官頁才需要。
  * judgments.json 是逐筆紀錄，瀏覽器不載入；它的用途一是讓每晚的 API 同步
  * 能讀回前一版繼續累加，二是讓任何人都能拿去自行驗算本站的統計。
+ *
+ * updatedAt 與 generatedAt 是兩個不同的時間點，混為一談會誤導下載這份檔案
+ * 自行驗算的人。updatedAt 是「上一次真正取得新資料」的時間：每晚同步若真的
+ * 抓到新的異動就是現在，若這次只是把既有紀錄原封寫回（例如非開放時段、
+ * 憑證缺失、連不上司法院），呼叫端會傳入前一版的 updatedAt，時間不會前進。
+ * generatedAt 則單純是這個檔案被寫出的當下，不論資料有沒有變動都是現在，
+ * 用來標示「這次建置確實跑過」，不代表內容有更新。
  */
-export async function writeJudicial(records, months, sourceDate = "") {
+export async function writeJudicial(records, months, sourceDate = "", dataAsOf = new Date().toISOString()) {
   const stats = summarise(records);
   await mkdir(OUT_DIR, { recursive: true });
+  const generatedAt = new Date().toISOString();
 
   // 分類結果隨紀錄一起發布，每晚同步讀回來就不必重新判讀，也不需要主文
   const published = stats.judgments.map((record) => {
@@ -63,7 +71,8 @@ export async function writeJudicial(records, months, sourceDate = "") {
   });
 
   await writeFile(join(OUT_DIR, "judgments.json"), JSON.stringify({
-    updatedAt: new Date().toISOString(),
+    updatedAt: dataAsOf,
+    generatedAt,
     // 每晚的 API 同步用它判斷這份異動清單是否已經處理過
     sourceDate,
     months,
@@ -85,7 +94,8 @@ export async function writeJudicial(records, months, sourceDate = "") {
   }));
 
   await writeFile(join(OUT_DIR, "judicial.json"), JSON.stringify({
-    updatedAt: new Date().toISOString(),
+    updatedAt: dataAsOf,
+    generatedAt,
     source: "司法院裁判書開放資料月包",
     months,
     coverage: stats.coverage,
@@ -100,7 +110,8 @@ export async function writeJudicial(records, months, sourceDate = "") {
   }) + "\n");
 
   await writeFile(join(OUT_DIR, "judicial-judges.json"), JSON.stringify({
-    updatedAt: new Date().toISOString(),
+    updatedAt: dataAsOf,
+    generatedAt,
     judges: stats.judges,
   }) + "\n");
 

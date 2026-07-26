@@ -22,6 +22,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "public", "data");
 const SITE_URL = process.env.SITE_URL?.replace(/\/$/, "") ?? "";
 
+/**
+ * deploy.yml 的「更新裁判書統計」步驟設了 continue-on-error，因為司法院 API
+ * 只接受國內來源、GitHub Actions 的機器連不進去（JudicialUnreachable）是已知且
+ * 持續的限制，不該擋下整個部署。但同一個 continue-on-error 也會把真正的異常
+ * （例如憑證被刪、司法院回應格式改變）一起吞掉，讓人以為只是常見的地域限制。
+ * 因此非地域限制的異常會在這裡留下標記檔，deploy.yml 讀到就讓 job 真的失敗；
+ * cache/ 不進版控（見 .gitignore），不會誤觸發部署或被提交進儲存庫。
+ */
+const JUDICIAL_FAILURE_FLAG = join(ROOT, "cache", "judicial-failure.flag");
+
 const PTS_SEARCH = "https://news.pts.org.tw/search/";
 
 /**
@@ -85,17 +95,39 @@ function unhealthy(message, hint) {
   log(`警告（本機執行不中斷）：${text}`);
 }
 
+/** 留下標記檔供 deploy.yml 判讀，見 JUDICIAL_FAILURE_FLAG 的說明。 */
+async function writeJudicialFailureFlag(error) {
+  await mkdir(dirname(JUDICIAL_FAILURE_FLAG), { recursive: true });
+  await writeFile(JUDICIAL_FAILURE_FLAG, `${error.message}\n`);
+}
+
+/**
+ * 404 代表站台還沒發布過這個檔案（例如第一次部署），是正常狀態，靜默回傳 null 即可。
+ * 其他任何狀況——fetch 本身拋例外（網路錯誤、DNS 失敗等）、回應非 2xx 也非 404、
+ * 或回應內容不是合法 JSON——都代表網站明明存在卻讀不到這份檔案，不是「尚未發布」，
+ * 必須被當成異常處理：STRICT 模式直接讓工作流程失敗，本機執行則印醒目警告後回 null，
+ * 讓呼叫端照舊往下走（種子或既有資料仍可接手）。
+ */
 async function readPrevious(name) {
   if (!SITE_URL) return null;
+  const url = `${SITE_URL}/data/${name}`;
   try {
-    const response = await fetch(`${SITE_URL}/data/${name}`);
+    const response = await fetch(url);
     if (response.ok) {
       const data = await response.json();
       log(`沿用已發布的 ${name}`);
       return data;
     }
-  } catch {
-    // 網站還沒發布或暫時取不到
+    if (response.status === 404) return null; // 站台尚未發布過，維持靜默
+    unhealthy(
+      `抓取已發布的 ${name} 時回應 ${response.status}。`,
+      "網站本身存在但這個檔案讀不到，可能是部署失敗或路徑跑掉，確認 GitHub Pages 的部署狀態與網址是否正確。",
+    );
+  } catch (error) {
+    unhealthy(
+      `抓取已發布的 ${name} 時發生例外（${error.message}）。`,
+      "可能是網路暫時性問題，也可能是回應內容已經不是合法 JSON；若持續發生，資料會停止累積但沒有任何警訊。",
+    );
   }
   return null;
 }
@@ -301,9 +333,22 @@ async function buildJudicial() {
   const preserve = async (reason) => {
     log(reason);
     if (records.size > 0) {
-      await writeJudicial([...records.values()], [...months].sort(), previous?.sourceDate ?? "");
+      // dataAsOf 沿用前一版真正取得新資料的時間，不是這次執行的時間——
+      // 這次只是原封寫回既有紀錄，並沒有真的同步到新資料
+      await writeJudicial(
+        [...records.values()], [...months].sort(),
+        previous?.sourceDate ?? "", previous?.updatedAt ?? "",
+      );
       log(`保留既有的 ${records.size} 筆判決`);
+      return;
     }
+    // CI 上一定會設定 JUDICIAL_SOURCE_URL 種子（見 sync-judicial.mjs），種子與已發布的
+    // 前一版若同時是空的，代表兩邊都出了問題，不是單純「還沒有資料」；若在此無聲跳過，
+    // 三個裁判資料檔會直接從這次部署的產物裡消失，卻沒有任何警訊。
+    unhealthy(
+      `${reason}，但既有裁判資料是空的，三個裁判資料檔本次將不會被寫入。`,
+      "確認 JUDICIAL_SOURCE_URL 種子是否可正常下載且內容完整，以及已發布網站的 judgments.json 是否正常。",
+    );
   };
 
   // 完整同步要逐筆抓數千份裁判書，耗時二十分鐘以上，不適合每次推送都跑
@@ -338,6 +383,7 @@ async function buildJudicial() {
       await preserve(`異動日期 ${result.sourceDate} 已處理過，略過重複抓取`);
       return;
     }
+    // 這次真的取得了新的異動清單並同步完成，dataAsOf 就是現在
     await writeJudicial([...records.values()], [...months].sort(), result.sourceDate);
   } catch (error) {
     // 司法院的服務只接受國內來源，從 GitHub 的機器（境外）連不進去。
@@ -416,5 +462,15 @@ async function syncJudicial(user, password, known, previousSourceDate) {
 
 const mode = process.argv[2] ?? "all";
 if (mode === "news" || mode === "all") await buildNews();
-if (mode === "judicial" || mode === "all") await buildJudicial();
+if (mode === "judicial" || mode === "all") {
+  try {
+    await buildJudicial();
+  } catch (error) {
+    // JudicialUnreachable 與各種正常保留（preserve）都在 buildJudicial() 內部
+    // 處理完畢、正常 return，不會流到這裡；能被外層接住的都是非地域限制的
+    // 真異常，才需要留下標記檔給 deploy.yml 判讀。
+    await writeJudicialFailureFlag(error);
+    throw error;
+  }
+}
 log("完成");

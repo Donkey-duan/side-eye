@@ -63,8 +63,11 @@ jobs:
           SITE_URL: ${{ steps.paths.outputs.site_url }}
         run: npm run data:news
 
-      # 司法院的 API 有其自身的時段與來源限制，取不到資料不應阻斷整個網站的部署，
-      # 因此這一步失敗只留下標記，建置與發布照常進行。連不上時腳本會保留既有資料。
+      # 司法院的 API 只接受國內來源，這台機器（境外）連不上是已知且持續的限制，
+      # 不應阻斷整個網站的部署，因此這一步設了 continue-on-error，腳本連不上時
+      # 會保留既有資料並正常結束。但同一個 continue-on-error 也會把真正的異常
+      # （例如憑證被刪、司法院回應格式改變）一起吞掉，因此下一步會檢查腳本是否
+      # 留下了標記檔：只有非地域限制的真異常才會留標記，讓 job 真的失敗、寄信通知。
       # 需要更新時在國內網路執行 npm run data:judicial，再以 JUDICIAL_SOURCE_URL 提供給 CI。
       - name: 更新裁判書統計
         continue-on-error: true
@@ -78,9 +81,22 @@ jobs:
           JUDICIAL_API_PASSWORD: ${{ secrets.JUDICIAL_API_PASSWORD }}
         run: npm run data:judicial
 
+      # cache/judicial-failure.flag 只在上一步遇到非地域限制的真異常時才會出現
+      # （見 scripts/build-data.mjs 的 writeJudicialFailureFlag）；地域限制與各種
+      # 正常保留都不會留下這個檔案。cache/ 不進版控，不會與其他步驟的產物混淆。
+      - name: 檢查裁判書更新是否為真異常
+        run: |
+          if [ -f cache/judicial-failure.flag ]; then
+            echo "::error::更新裁判書統計時發生非地域限制的異常，詳見下方內容"
+            cat cache/judicial-failure.flag
+            exit 1
+          fi
+
       - name: 建置靜態網站
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.paths.outputs.base_path }}
+          # app/sitemap.ts 需要正式站網址才能產出絕對網址，缺少時會退回寫死的 fallback
+          SITE_URL: ${{ steps.paths.outputs.site_url }}
         run: npm run build
 
       - name: 驗證產出

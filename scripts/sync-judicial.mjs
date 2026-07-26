@@ -56,10 +56,39 @@ try {
   process.exit(1);
 }
 
-console.log("\n③ 推上 Release 種子（--clobber 覆蓋舊的）");
+// 裁判資料只增不減：司法院只會用「查無資料」通知下架，不會整批消失。
+// --clobber 會直接覆蓋掉權威種子，上傳前先跟目前掛在 Release 上的筆數比一比，
+// 新筆數比舊的少就中止，避免一次錯誤的本機執行把既有累積毀掉還沒人發現。
+console.log("\n③ 上傳前比對筆數（裁判資料只增不減）");
+let previousCount = 0;
+try {
+  const response = await fetch(seedUrl);
+  if (response.ok) {
+    const previous = await response.json();
+    previousCount = Array.isArray(previous) ? previous.length : (previous.records?.length ?? 0);
+  } else if (response.status !== 404) {
+    console.error(`  警告：取得目前種子筆數時回應 ${response.status}，暫時視為 0 筆，比對可能不準確。`);
+  }
+} catch (error) {
+  console.error(`  警告：取得目前種子筆數失敗（${error.message}），暫時視為 0 筆，比對可能不準確。`);
+}
+console.log(`  目前種子：${previousCount} 筆；本次產出：${count} 筆`);
+
+const FORCE = process.env.SYNC_FORCE === "1";
+if (typeof count === "number" && count < previousCount) {
+  if (!FORCE) {
+    console.error(`\n✗ 新產出 ${count} 筆，少於目前種子的 ${previousCount} 筆，中止上傳。`);
+    console.error("  裁判資料只會累加，筆數變少多半代表這次同步有問題，而不是司法院真的下架了這麼多筆。");
+    console.error("  確認無誤後設定環境變數 SYNC_FORCE=1 重新執行即可跳過本檢查。");
+    process.exit(1);
+  }
+  console.error(`  已設定 SYNC_FORCE=1，略過筆數檢查（新 ${count} 筆 < 舊 ${previousCount} 筆），照常上傳。`);
+}
+
+console.log("\n④ 推上 Release 種子（--clobber 覆蓋舊的）");
 run(`gh release upload ${TAG} ${SEED_FILE} --clobber`);
 
-console.log("\n④ 觸發 CI 重建與部署");
+console.log("\n⑤ 觸發 CI 重建與部署");
 run(`gh workflow run ${WORKFLOW} --ref main`);
 
 console.log(`\n✓ 完成：種子已更新為 ${count} 筆，CI 已開始重建部署。`);
