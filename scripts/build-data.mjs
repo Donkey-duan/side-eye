@@ -32,11 +32,24 @@ const SITE_URL = process.env.SITE_URL?.replace(/\/$/, "") ?? "";
  */
 const JUDICIAL_FAILURE_FLAG = join(ROOT, "cache", "judicial-failure.flag");
 
-const PTS_SEARCH = "https://news.pts.org.tw/search/";
+/**
+ * 2026 年 8 月公視新聞網改版後，站內搜尋整個失效：https://news.pts.org.tw/search/任何詞
+ * 一律回自家 404，連站上真人手動搜尋也一樣，不是我們的 User-Agent 被擋，是這個路徑本身
+ * 已經壞掉。因此改抓兩個不需要瀏覽器、沒有 WAF 挑戰的來源，純 fetch 就通：
+ *   1. PTS_FEED_URL：Atom feed，約數十則最新報導，有摘要但沒有分類。
+ *   2. PTS_DAILYNEWS_URL：每日新聞列表頁，可翻頁，有分類但沒有摘要。
+ * 兩者以網址合併欄位（見 mergeArticle()），再丟給 isRelevant() 篩出性別事件。
+ * 這兩個來源都只看得到「最近」的報導，不像舊的逐詞搜尋還能不斷往回翻頁補歷史——
+ * 舊版這裡曾經寫「逐詞查詢可以往回翻頁補歷史」，現在已經不成立。歷史只能靠
+ * scripts/seed/ 的種子（本機逐頁回溯建立）與已發布索引（readPrevious）逐日累積，
+ * 這次抓到的新資料一律併入既有索引，無法、也不需要整批重建。
+ */
+const PTS_FEED_URL = "https://news.pts.org.tw/xml/newsfeed.xml";
+const PTS_DAILYNEWS_URL = "https://news.pts.org.tw/dailynews";
 
 /**
- * 監測詞。公視提供關鍵字搜尋，因此改成逐詞查詢，而不是抓分類列表再過濾。
- * 好處是可以往回翻頁補歷史，不必從架站當天才開始累積。
+ * 監測詞。改版後不再能拿去查詢（見上方新聞段開頭的說明），只用來從 feed 與
+ * dailynews 抓回的候選報導裡篩出性別事件，判準見 isRelevant()。
  */
 const MONITOR_TERMS = [
   "性平", "性騷擾", "性侵害", "性霸凌", "性別平等", "妨害性自主",
@@ -70,8 +83,10 @@ function isRelevant(article) {
 }
 
 /**
- * 每個監測詞往回翻幾頁。每頁 20 則，平時抓前兩頁足以接住新報導；
- * 要重建歷史索引時在本機把 NEWS_PAGES 調大跑一次即可。
+ * dailynews 列表頁抓第 1 到第幾頁。第 1 頁是當下最新的報導，平時抓前兩頁
+ * 足以接住新報導；dailynews 不像舊的搜尋結果那樣可以無限翻頁補歷史
+ * （見上方新聞段開頭的說明），調大這個數字只是多看幾頁「最近」的新聞，
+ * 不是用來重建歷史索引。
  */
 const NEWS_PAGES = Number(process.env.NEWS_PAGES ?? 2);
 
@@ -168,29 +183,95 @@ function text(value) {
 const MIGRATION_STAMP = "2011-08-02 14:30:37";
 
 /**
- * 解析公視搜尋結果。每一則是一個 li.row，標題在 h2 的連結裡，
- * 發布時間在 time 的 datetime 屬性，分類與摘要各自在後面。
+ * 把可能帶時區位移的 ISO 字串（例如 feed 的 updated：2026-08-07T08:20:12+08:00）
+ * 換算成臺北時間、既有索引在用的 "YYYY-MM-DD HH:mm:ss" 格式。索引靠這個格式做
+ * 字串排序（見 buildNews() 尾端），混進 ISO 格式會把排序弄壞，因此兩個來源的
+ * 時間都要先經過這裡正規化。轉換失敗（缺值或不是合法日期）回傳空字串。
  */
-function extractArticles(html) {
+function toTaipeiTimestamp(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
+/**
+ * 解析 newsfeed.xml（Atom）。每個 entry 是一則報導，標題與摘要都包在 CDATA
+ * 裡，摘要含 HTML 要先去標籤再截斷；updated 是帶 +08:00 位移的 ISO 字串，
+ * 要換算成臺北時間才能跟既有索引的格式一致。這個來源沒有分類。
+ * 依 export 才測得到的慣例（見 tests/news-parsers.test.mjs）具名匯出。
+ */
+export function extractFeedArticles(xml) {
   const articles = [];
-  for (const block of html.split(/<li class="row">/).slice(1)) {
-    const link = /href="(https:\/\/news\.pts\.org\.tw\/article\/\d+)"/.exec(block);
-    const title = /<h2><a [^>]*>([\s\S]*?)<\/a><\/h2>/.exec(block);
+  for (const block of xml.split(/<entry>/).slice(1)) {
+    const link = /<link rel="alternate" href="(https:\/\/news\.pts\.org\.tw\/article\/\d+)"/.exec(block);
+    const title = /<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/.exec(block);
+    const summary = /<summary[^>]*>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/summary>/.exec(block);
+    const updated = /<updated>([^<]+)<\/updated>/.exec(block);
     if (!link || !title) continue;
-    const time = /<time datetime="([^"]+)"/.exec(block);
-    const category = /href="https:\/\/news\.pts\.org\.tw\/category\/\d+"[^>]*>([\s\S]*?)<\/a>/.exec(block);
-    const summary = /<p class="[^"]*">([\s\S]*?)<\/p>/.exec(block);
-    const published = time && time[1] !== MIGRATION_STAMP ? time[1] : "";
+    const publishedAt = toTaipeiTimestamp(updated?.[1]);
+    const known = publishedAt && publishedAt !== MIGRATION_STAMP;
     articles.push({
       title: text(title[1]),
       url: link[1],
-      publishedAt: published,
-      ...(published ? {} : { dateUnknown: true }),
+      publishedAt: known ? publishedAt : "",
+      ...(known ? {} : { dateUnknown: true }),
       summary: summary ? text(summary[1]).slice(0, 160) : "",
-      category: category ? text(category[1]) : "公視新聞",
     });
   }
   return articles;
+}
+
+/**
+ * 解析每日新聞列表頁。同一版型共用的閒置彈窗（id="idleModal"）裡也有
+ * /article/ 連結，若整頁掃連結會把彈窗裡的報導也收進來；因此先框定在
+ * <article>…</article>——這是頁面真正列出當日新聞的區塊，idleModal 在它
+ * 外面——再以每則新聞縮圖前的 useImgHover 連結切成一則一則來解析，
+ * 不會誤收彈窗內容。這個來源沒有摘要。
+ */
+export function extractDailynewsArticles(html) {
+  const region = /<article[^>]*>[\s\S]*?<\/article>/.exec(html)?.[0] ?? "";
+  const articles = [];
+  for (const block of region.split(/<a href="https:\/\/news\.pts\.org\.tw\/article\/\d+" class="useImgHover">/).slice(1)) {
+    const titleLink = /<a\s+href="(https:\/\/news\.pts\.org\.tw\/article\/\d+)">([\s\S]*?)<\/a>\s*<\/h[12]>/.exec(block);
+    if (!titleLink) continue;
+    const time = /<time[^>]*datetime="([^"]+)"/.exec(block);
+    const category = /<a href="https:\/\/news\.pts\.org\.tw\/category\/\d+">([^<]+)<\/a>/.exec(block);
+    const raw = time?.[1] ?? "";
+    const known = raw && raw !== MIGRATION_STAMP;
+    articles.push({
+      title: text(titleLink[2]),
+      url: titleLink[1],
+      publishedAt: known ? raw : "",
+      ...(known ? {} : { dateUnknown: true }),
+      category: category ? text(category[1]) : "",
+    });
+  }
+  return articles;
+}
+
+/**
+ * 以網址合併 feed 與列表頁的同一則報導。摘要只有 feed 有，直接採用；
+ * 分類是列表頁獨有欄位，發布時間列表頁也精確到秒且較貼近既有索引的格式，
+ * 因此兩者優先取列表頁的，該篇只在 feed 出現時才退回 feed 的值；
+ * 標題兩邊都有，缺一邊時取有的那邊。
+ */
+export function mergeArticle(feedItem, dailyItem) {
+  const publishedAt = dailyItem?.publishedAt || feedItem?.publishedAt || "";
+  return {
+    title: dailyItem?.title || feedItem?.title || "",
+    url: dailyItem?.url ?? feedItem?.url,
+    publishedAt,
+    ...(publishedAt ? {} : { dateUnknown: true }),
+    summary: feedItem?.summary ?? "",
+    category: dailyItem?.category || feedItem?.category || "公視新聞",
+  };
 }
 
 function articlesOf(source) {
@@ -207,42 +288,67 @@ async function buildNews() {
   const existing = [...articlesOf(seed), ...articlesOf(previous)];
   log(`既有索引：種子 ${articlesOf(seed).length} 則、已發布 ${articlesOf(previous).length} 則`);
 
-  const fetched = [];
+  // 兩個來源都用同一個 User-Agent；不需要瀏覽器、沒有 WAF 挑戰，純 fetch 就通
+  // （見新聞段開頭的說明）。requested／reachable 橫跨兩個來源合計，健康檢查
+  // 也是看兩者合計的結果，見下方。
+  const fetchHeaders = { headers: { "user-agent": "MingjingGenderWatch/1.0 (+public-interest news index)" } };
   let requested = 0;
   let reachable = 0;
-  for (const term of MONITOR_TERMS) {
-    for (let page = 1; page <= NEWS_PAGES; page++) {
-      const url = `${PTS_SEARCH}${encodeURIComponent(term)}${page > 1 ? `?page=${page}` : ""}`;
-      requested++;
-      try {
-        const response = await fetch(url, {
-          headers: { "user-agent": "MingjingGenderWatch/1.0 (+public-interest news index)" },
-        });
-        // 超過最後一頁會回 404，那是正常的結束訊號，不算失敗
-        if (response.status === 404) { reachable++; break; }
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        reachable++;
-        const found = extractArticles(await response.text());
-        fetched.push(...found);
-        if (found.length === 0) break;
-      } catch (error) {
-        log(`搜尋「${term}」第 ${page} 頁失敗：${error.message}`);
-      }
+
+  let feedArticles = [];
+  requested++;
+  try {
+    const response = await fetch(PTS_FEED_URL, fetchHeaders);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    reachable++;
+    feedArticles = extractFeedArticles(await response.text());
+  } catch (error) {
+    log(`抓取 ${PTS_FEED_URL} 失敗：${error.message}`);
+  }
+  log(`newsfeed.xml 取回 ${feedArticles.length} 則`);
+
+  const dailyArticles = [];
+  for (let page = 1; page <= NEWS_PAGES; page++) {
+    const url = `${PTS_DAILYNEWS_URL}${page > 1 ? `?page=${page}` : ""}`;
+    requested++;
+    try {
+      const response = await fetch(url, fetchHeaders);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      reachable++;
+      dailyArticles.push(...extractDailynewsArticles(await response.text()));
+    } catch (error) {
+      log(`抓取 ${url} 失敗：${error.message}`);
     }
   }
-  log(`公視搜尋 ${MONITOR_TERMS.length} 個監測詞、${requested} 次請求，取回 ${fetched.length} 則`);
+  log(`dailynews 第 1 至 ${NEWS_PAGES} 頁取回 ${dailyArticles.length} 則`);
+
+  // 以網址合併兩個來源（見 mergeArticle() 的欄位優先序），再交給下面的
+  // isRelevant() 篩選；候選本身沒有先用關鍵字查詢過，全部都要篩。
+  const candidatesByUrl = new Map();
+  for (const item of feedArticles) {
+    if (item.url) candidatesByUrl.set(item.url, { feed: item });
+  }
+  for (const item of dailyArticles) {
+    if (!item.url) continue;
+    const entry = candidatesByUrl.get(item.url) ?? {};
+    entry.daily = item;
+    candidatesByUrl.set(item.url, entry);
+  }
+  const fetched = [...candidatesByUrl.values()].map(({ feed, daily }) => mergeArticle(feed, daily));
+  log(`兩個來源合併去重後共 ${fetched.length} 則候選`);
 
   // 健康檢查。注意「今天沒有性平相關新聞」是正常的，不該失敗；
-  // 不正常的是「連一則新聞都解析不出來」，那代表抓取或解析壞了。
+  // 不正常的是「兩個來源合計連一則新聞都解析不出來」，那代表抓取或解析壞了。
+  // dailynews 隨時都有新聞，連得上卻解析出 0 則，必然是頁面結構改了。
   if (reachable === 0) {
     unhealthy(
-      "公視搜尋全部無法連線。",
-      "可能是對方暫時故障、擋了我們的 User-Agent，或網址已變更。先用瀏覽器開 https://news.pts.org.tw/search/性騷擾 確認。",
+      "公視新聞（newsfeed.xml 與 dailynews）全部無法連線。",
+      "可能是對方暫時故障、擋了我們的 User-Agent，或網址已變更。先用瀏覽器開 https://news.pts.org.tw/xml/newsfeed.xml 與 https://news.pts.org.tw/dailynews 確認。",
     );
   } else if (fetched.length === 0) {
     unhealthy(
       `連得上公視（${reachable}/${requested} 次請求成功）但一則新聞都解析不出來。`,
-      "多半是公視改版導致頁面結構改變，需要更新 scripts/build-data.mjs 的 extractArticles()。",
+      "dailynews 隨時都有新聞，解析出 0 則必然是公視改版導致頁面結構改變，需要更新 scripts/build-data.mjs 的 extractFeedArticles() 或 extractDailynewsArticles()。",
     );
   }
 
@@ -460,17 +566,24 @@ async function syncJudicial(user, password, known, previousSourceDate) {
 
 /* ============================================================ */
 
-const mode = process.argv[2] ?? "all";
-if (mode === "news" || mode === "all") await buildNews();
-if (mode === "judicial" || mode === "all") {
-  try {
-    await buildJudicial();
-  } catch (error) {
-    // JudicialUnreachable 與各種正常保留（preserve）都在 buildJudicial() 內部
-    // 處理完畢、正常 return，不會流到這裡；能被外層接住的都是非地域限制的
-    // 真異常，才需要留下標記檔給 deploy.yml 判讀。
-    await writeJudicialFailureFlag(error);
-    throw error;
+// tests/news-parsers.test.mjs 會 import 本檔的具名匯出（extractFeedArticles 等）
+// 來測試解析邏輯，而 ES module 的 import 一定會執行到頂層程式碼；若沒有這道
+// 判斷，跑測試就會連帶觸發真的抓取與寫檔。只有直接被 node 執行（而不是被
+// import）時才進入這個入口。
+const isDirectRun = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isDirectRun) {
+  const mode = process.argv[2] ?? "all";
+  if (mode === "news" || mode === "all") await buildNews();
+  if (mode === "judicial" || mode === "all") {
+    try {
+      await buildJudicial();
+    } catch (error) {
+      // JudicialUnreachable 與各種正常保留（preserve）都在 buildJudicial() 內部
+      // 處理完畢、正常 return，不會流到這裡；能被外層接住的都是非地域限制的
+      // 真異常，才需要留下標記檔給 deploy.yml 判讀。
+      await writeJudicialFailureFlag(error);
+      throw error;
+    }
   }
+  log("完成");
 }
-log("完成");
