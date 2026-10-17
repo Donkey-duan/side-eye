@@ -57,7 +57,7 @@ jobs:
           TALENT_SOURCE_URL: ${{ secrets.TALENT_SOURCE_URL }}
         run: npm run data:talent
 
-      # 公視新聞索引：抓當日列表，與已發布的前一版合併累積
+      # 公視新聞索引：抓最近約兩天的列表，與已發布的前一版合併累積
       - name: 更新新聞索引
         env:
           SITE_URL: ${{ steps.paths.outputs.site_url }}

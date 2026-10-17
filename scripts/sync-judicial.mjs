@@ -9,8 +9,14 @@
  *   npm run sync:judicial
  *
  * 需要：本機 .env 內有 JUDICIAL_API_USER / JUDICIAL_API_PASSWORD；gh 已登入且在專案目錄。
- * 這支腳本不進 git、不碰你的其他資料，只做三件事：抓資料 → 更新 Release 種子 → 觸發部署。
+ * 這支腳本不進 git、不碰你的其他資料，只做四件事：啟用工作流程 → 抓資料 → 更新 Release 種子 → 觸發部署。
  * 每晚由 Windows 工作排程「明鏡-裁判資料同步」自動執行。
+ *
+ * 為什麼觸發前要先 enable：GitHub 對 60 天沒有 commit 的公開 repo 會自動停用工作流程
+ * （狀態 disabled_inactivity），停用後連 workflow_dispatch 也無法觸發。2026-10-17 的夜間
+ * 同步就因此在 dispatch 這步收到 HTTP 422（Cannot trigger a workflow_dispatch on a disabled
+ * workflow），種子其實已上傳成功。gh workflow enable 是冪等的，已啟用時也不會報錯，
+ * 所以每次同步一開始就先跑一次，失敗只警告不中止。
  */
 import { execSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
@@ -41,7 +47,15 @@ if (!repo) {
 // 本機累加的起點＝CI 讀的同一份種子，兩邊一致
 const seedUrl = `https://github.com/${repo}/releases/download/${TAG}/judgments.json`;
 
-console.log("① 抓司法院 API 並處理（僅臺灣網路、開放時段可成功）");
+console.log("① 確保工作流程已啟用（GitHub 會自動停用閒置 60 天的 repo；就算後面抓資料失敗，先啟用也能讓夜間排程恢復）");
+try {
+  execSync(`gh workflow enable ${WORKFLOW}`, { stdio: "inherit" });
+} catch {
+  console.error("  警告：gh workflow enable 失敗，繼續同步；若工作流程仍是停用狀態，最後一步觸發會失敗，請手動 gh workflow enable deploy.yml。");
+}
+console.log("");
+
+console.log("② 抓司法院 API 並處理（僅臺灣網路、開放時段可成功）");
 console.log(`   累加起點：${seedUrl}`);
 run("npm run data:judicial", { JUDICIAL_SOURCE_URL: seedUrl });
 
@@ -50,7 +64,7 @@ try {
   const data = JSON.parse(readFileSync(SEED_FILE, "utf8"));
   count = Array.isArray(data) ? data.length : (data.records?.length ?? "?");
   const mb = (statSync(SEED_FILE).size / 1e6).toFixed(1);
-  console.log(`\n② 已產出 ${SEED_FILE}：${count} 筆、${mb} MB`);
+  console.log(`\n③ 已產出 ${SEED_FILE}：${count} 筆、${mb} MB`);
 } catch {
   console.error(`✗ 讀不到 ${SEED_FILE}，同步可能失敗（API 逾時？非開放時段？），未推送。`);
   process.exit(1);
@@ -59,7 +73,7 @@ try {
 // 裁判資料只增不減：司法院只會用「查無資料」通知下架，不會整批消失。
 // --clobber 會直接覆蓋掉權威種子，上傳前先跟目前掛在 Release 上的筆數比一比，
 // 新筆數比舊的少就中止，避免一次錯誤的本機執行把既有累積毀掉還沒人發現。
-console.log("\n③ 上傳前比對筆數（裁判資料只增不減）");
+console.log("\n④ 上傳前比對筆數（裁判資料只增不減）");
 let previousCount = 0;
 try {
   const response = await fetch(seedUrl);
@@ -85,10 +99,10 @@ if (typeof count === "number" && count < previousCount) {
   console.error(`  已設定 SYNC_FORCE=1，略過筆數檢查（新 ${count} 筆 < 舊 ${previousCount} 筆），照常上傳。`);
 }
 
-console.log("\n④ 推上 Release 種子（--clobber 覆蓋舊的）");
+console.log("\n⑤ 推上 Release 種子（--clobber 覆蓋舊的）");
 run(`gh release upload ${TAG} ${SEED_FILE} --clobber`);
 
-console.log("\n⑤ 觸發 CI 重建與部署");
+console.log("\n⑥ 觸發 CI 重建與部署");
 run(`gh workflow run ${WORKFLOW} --ref main`);
 
 console.log(`\n✓ 完成：種子已更新為 ${count} 筆，CI 已開始重建部署。`);

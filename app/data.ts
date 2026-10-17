@@ -27,7 +27,7 @@ export const dataSources: { target: SiteView; name: string; authority: string; c
     target: "news",
     name: "公視性平新聞索引",
     authority: "公視新聞網",
-    coverage: "以 12 個監測詞查詢公視新聞搜尋，並逐頁往回收錄歷史報導",
+    coverage: "每晚抓公視最新報導（Atom feed 與每日列表），以 12 個監測詞篩選後累積；2026 年 8 月以前的歷史索引為先前逐頁回溯建立",
     cadence: "每晚累積",
     state: "live",
     note: "只保存標題、短摘要與原始連結，不重製內文與影音",

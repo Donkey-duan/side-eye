@@ -2310,6 +2310,47 @@ summary {
   max-width: 46em;
 }
 
+/* 心理支持頁的匿名同儕支持區塊：與上方警示卡以細線分隔 */
+.peer-support {
+  border-top: 1px solid var(--line);
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-6);
+}
+
+.peer-support .block-title {
+  margin-top: 0;
+}
+
+.peer-support-lead {
+  color: var(--muted);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  max-width: 70ch;
+  margin: 0 0 var(--sp-5);
+}
+
+.companion-note {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--link);
+  background: var(--card);
+  padding: var(--sp-5) var(--sp-6);
+  margin-top: var(--sp-6);
+}
+
+.companion-note b {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: var(--fs-h4);
+  margin-bottom: var(--sp-2);
+}
+
+.companion-note p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-body);
+  line-height: var(--lh-loose);
+}
+
 .legal-note {
   font-size: var(--fs-small);
   color: var(--muted);
@@ -3492,6 +3533,95 @@ footer > div:last-child a:hover {
   margin-top: var(--sp-4);
   cursor: pointer;
   font-size: var(--fs-body);
+}
+
+/* ------------------------------------------------------------
+   回到現在（安全出口）：全站右下角的固定按鈕與對話框。
+   層級介於 sticky 頂列（20）與對話框背景（50）之間。
+   ------------------------------------------------------------ */
+
+.safe-exit-button {
+  position: fixed;
+  right: var(--sp-5);
+  bottom: var(--sp-5);
+  z-index: 25;
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--paper);
+  color: var(--link);
+  border: 1px solid var(--line-strong);
+  font-size: var(--fs-small);
+  letter-spacing: var(--ls-label);
+  cursor: pointer;
+}
+
+.safe-exit-button:hover {
+  transform: translateY(var(--lift));
+  border-color: var(--link);
+}
+
+/* 按鈕固定在右下角，頁尾多留一段底部空間，最底下的連結才不會被它蓋住 */
+footer {
+  padding-bottom: calc(var(--sp-7) + 72px);
+}
+
+.safe-exit-modal {
+  width: min(36rem, 100%);
+}
+
+.safe-exit-modal > p {
+  margin: var(--sp-3) 0 0;
+  line-height: var(--lh-body);
+}
+
+.safe-exit-methods li strong {
+  display: block;
+}
+
+.safe-exit-escalate {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--alert-wash);
+  border-left: 4px solid var(--alert);
+  color: var(--alert);
+}
+
+.safe-exit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.safe-exit-leave {
+  min-height: 44px;
+  padding: var(--sp-4) var(--sp-6);
+  margin-top: var(--sp-4);
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  font-size: var(--fs-body);
+}
+
+.safe-exit-leave:hover {
+  background: var(--card-sunken);
+}
+
+.safe-exit-modal > .safe-exit-note,
+.safe-exit-modal > .safe-exit-credit {
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+
+.safe-exit-credit a {
+  color: var(--link);
+  border-bottom: 1px solid;
+}
+
+@media print {
+  .safe-exit-button {
+    display: none;
+  }
 }
 
 /* 內文中的跳轉連結：緊接在說明文字之後，帶讀者到更正頁 */

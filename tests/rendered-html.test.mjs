@@ -40,6 +40,28 @@ test("首頁含跳到主要內容的 skip link，且 header／footer 與 main �
   assert.ok(mainClose < footerOpen, "footer 應在 main 結束後才開始，不應巢狀在 main 內");
 });
 
+test("全站有回到現在按鈕，對話框可用鍵盤關閉並鎖住焦點", async () => {
+  // 被內容勾起情緒的人需要隨時打斷：按鈕在每個頁面的靜態輸出裡就要存在，不能等 JS 載入
+  const home = await page("/");
+  assert.match(home, /aria-haspopup="dialog"/, "首頁缺少回到現在的懸浮按鈕");
+  assert.match(home, /回到現在/, "首頁缺少「回到現在」文字");
+
+  // 對話框要自己處理 Esc、焦點鎖定與關閉後焦點返回，缺一項鍵盤使用者就會迷失；
+  // 離開動作只能放在事件處理函式裡碰 window，靜態預先渲染時不可存取。
+  const code = await source("app/components/safe-exit.tsx");
+  assert.match(code, /event\.key === "Escape"/, "缺少 Esc 關閉");
+  assert.match(code, /aria-modal="true"/, "對話框缺少 aria-modal");
+  assert.match(code, /opener\?\.focus\(\)/, "關閉後焦點未回到觸發按鈕");
+  assert.match(code, /window\.location\.replace/, "離開動作應用 replace，避免上一頁又回到這裡");
+  assert.match(code, /現在，我很安全/, "缺少回到現在的引導語");
+  // 使用者明令：110／113 一律純文字，不做 tel: 連結
+  assert.doesNotMatch(code, /href="tel:/, "110／113 不應做成 tel: 連結");
+
+  // 「我是受害者」的安全提示要讓人知道有這個按鈕
+  const victim = await page("/victim");
+  assert.match(victim, /點右下角的「回到現在」/, "受害者專區未提示回到現在按鈕");
+});
+
 test("每個專區都有可分享的網址與各自的 metadata", async () => {
   const cases = [
     ["/", "台灣性別事件公共資訊平台", /class="hero /],
@@ -126,8 +148,18 @@ test("受害者專區涵蓋安全、證據、程序、申復與復原", async ()
   assert.match(code, /有應調查之證據而未調查/);
   assert.match(code, /有證據取捨瑕疵而影響事實認定/);
   assert.match(code, /不成立，不等於事情沒有發生/);
+  // 心理支持頁介紹暖暖 Sunshine（經其同意引用），並要有陪伴者段落
+  assert.match(code, /程序之外，也有人可以同行/);
+  assert.match(code, /nuannuansunshine\.org/);
+  assert.match(code, /如果你是陪伴者/);
 
   assert.match(await source("app/site-view.tsx"), /受害者專區前後導覽/);
+});
+
+test("心理支持頁介紹暖暖 Sunshine 的匿名同儕支持並附來源連結", async () => {
+  const html = await page("/victim/mental");
+  assert.match(html, /暖暖 Sunshine/);
+  assert.match(html, /href="https:\/\/nuannuansunshine\.org\//, "缺少暖暖官方網站的來源連結");
 });
 
 test("資料方法彈窗可用鍵盤關閉並鎖住焦點", async () => {
@@ -191,6 +223,35 @@ test("同步腳本上傳裁判種子前會比對新舊筆數，裁判資料只�
   assert.match(sync, /process\.env\.SYNC_FORCE/, "缺少可跳過檢查的環境變數");
   assert.match(sync, /process\.exit\(1\)/, "筆數變少且未強制跳過時應中止，不能照常上傳");
   assert.match(sync, /gh release upload .* --clobber/, "檢查通過後仍應照常覆蓋種子");
+});
+
+test("新聞列表抓取頁數足以涵蓋整天，且同步腳本會先啟用被 GitHub 停用的工作流程", async () => {
+  // 公視 2026 年 8 月改版後搜尋已死，只能靠 dailynews 列表。每頁 15 則、每天約發 60 則，
+  // 預設只抓 2 頁時，三個備援時段看到的是同一批最新 30 則，前一天上午的報導會被推到
+  // 第 3 頁以後而永遠漏掉。這裡鎖住預設頁數，避免之後有人為了「快一點」又調回去。
+  const pipeline = await source("scripts/build-data.mjs");
+  // 留空字串要退回預設，所以用 || 不用 ??。
+  const pages = pipeline.match(/NEWS_PAGES = Math\.max\(1, Math\.floor\(Number\(process\.env\.NEWS_PAGES\) \|\| (\d+)\)\)/);
+  assert.ok(pages, "找不到 NEWS_PAGES 的預設值");
+  assert.ok(Number(pages[1]) >= 8,
+    `NEWS_PAGES 預設 ${pages[1]} 頁太少：每頁 15 則、公視每天約發 60 則，2 頁會漏掉前一天上午的報導`);
+
+  // GitHub 對 60 天沒有 commit 的公開 repo 會停用工作流程，停用後 workflow_dispatch 回 HTTP 422。
+  // 本機同步腳本是唯一的觸發者，所以必須在觸發前先 enable（冪等，已啟用時不報錯），
+  // 順序顛倒就等於沒擋。比對的是實際指令（含 ${WORKFLOW}），不是註解裡的說明文字。
+  const sync = await source("scripts/sync-judicial.mjs");
+  const enableAt = sync.indexOf("gh workflow enable ${WORKFLOW}");
+  const runAt = sync.indexOf("gh workflow run ${WORKFLOW}");
+  assert.ok(enableAt >= 0, "同步腳本缺少 gh workflow enable");
+  assert.ok(runAt >= 0, "同步腳本缺少 gh workflow run");
+  assert.ok(enableAt < runAt, "gh workflow enable 必須出現在 gh workflow run 之前");
+
+  // 搜尋已死，站上不能再宣稱以監測詞查詢公視搜尋並往回收錄歷史；
+  // 早期索引來自先前的逐頁回溯，文案要如實分開講。
+  for (const file of ["app/data.ts", "app/routes.ts", "app/site-view.tsx"]) {
+    assert.doesNotMatch(await source(file), /往回收錄歷史|歷史回溯|查詢公視新聞搜尋/,
+      `${file} 仍保留已不成立的新聞抓取描述`);
+  }
 });
 
 test("執行時抓來的資料結構不符時要退回空狀態，而不是讓整站崩潰", async () => {

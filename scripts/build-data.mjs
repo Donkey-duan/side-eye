@@ -83,12 +83,20 @@ function isRelevant(article) {
 }
 
 /**
- * dailynews 列表頁抓第 1 到第幾頁。第 1 頁是當下最新的報導，平時抓前兩頁
- * 足以接住新報導；dailynews 不像舊的搜尋結果那樣可以無限翻頁補歷史
- * （見上方新聞段開頭的說明），調大這個數字只是多看幾頁「最近」的新聞，
- * 不是用來重建歷史索引。
+ * dailynews 列表頁抓第 1 到第幾頁。每頁 15 則，公視每天約發 60 則，大約 4 頁。
+ * 只抓 2 頁（30 則）時，排程在臺北 01:00、03:00、05:00 三個時段看到的是同一批，
+ * 前一天上午到下午發的報導大多已被推到第 3 頁以後，會漏掉一半左右。
+ * 預設 8 頁約 120 則，涵蓋近兩天：任一備援時段跑到就接得住，
+ * 整晚失敗一次也還補得回來。Atom feed 的 25 則完全落在前 2 頁內，沒有額外貢獻。
+ *
+ * 固定頁數而不是「看到舊日期就提前停」，因為 dailynews 的排序不是嚴格按時間，
+ * 第 2 頁的時間範圍可能整個落在第 1 頁範圍內，以日期判斷會提早收手。
+ *
+ * dailynews 不像舊的搜尋結果那樣可以無限翻頁補歷史（見上方新聞段開頭的說明），
+ * 調大這個數字只是多看幾頁「最近」的新聞，不是用來重建歷史索引。
+ * 用 || 而不是 ??：.env.example 把這個鍵留空時，--env-file 會載成空字串，?? 擋不住，Number("") 是 0 會一頁都不抓。
  */
-const NEWS_PAGES = Number(process.env.NEWS_PAGES ?? 2);
+const NEWS_PAGES = Math.max(1, Math.floor(Number(process.env.NEWS_PAGES) || 8));
 
 const JUDICIAL_API = "https://data.judicial.gov.tw/jdg/api";
 

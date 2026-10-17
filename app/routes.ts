@@ -83,7 +83,7 @@ export const sectionMeta: Record<SiteView, PageMeta> = {
   },
   news: {
     title: "公視性平新聞索引",
-    description: "可搜尋的公視性平相關新聞索引，以監測詞查詢並逐頁往回收錄歷史報導，只保存標題、短摘要與原始連結。",
+    description: "可搜尋的公視性平相關新聞索引：每晚抓公視最新報導，以監測詞篩選後持續累積，只保存標題、短摘要與原始連結。",
   },
   coaches: {
     title: "運動部不適任教練專區",
@@ -138,7 +138,7 @@ export const victimMeta: Record<VictimTopic, PageMeta> = {
   },
   mental: {
     title: "心理準備與支持",
-    description: "程序可能很久也可能讓你重回事件：訪談前後的安排、等待期的照顧，以及認定會受委員主觀判斷影響的心理預期。",
+    description: "程序可能很久也可能讓你重回事件：訪談前後的安排、等待期的照顧、認定會受委員主觀判斷影響的心理預期，以及匿名同儕支持與免費資源。",
   },
   talent: {
     title: "全國性平委員名冊",

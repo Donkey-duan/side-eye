@@ -61,6 +61,7 @@ export default function VictimGuide({ siteView, victimView, pager }: {
               <li>看完後清除這個網站的瀏覽紀錄</li>
               <li>或改用對方接觸不到的裝置</li>
               <li>需要時可直接關閉分頁離開</li>
+              <li>情緒被勾起時，點右下角的「回到現在」先緩一緩，裡面也有馬上離開的選項</li>
             </ul>
           </div>
           <div className="campus-cards-lead">
@@ -75,7 +76,7 @@ export default function VictimGuide({ siteView, victimView, pager }: {
             <Link href={viewPath("victim", "appeal")}><b>05</b><span><strong>申復與後續救濟</strong><small>法定門檻、六款重大瑕疵與申復之後的申訴</small></span><i>→</i></Link>
             <Link href={viewPath("victim", "preparation")}><b>06</b><span><strong>行動準備清單</strong><small>出發前逐項確認安全、證據與陪同</small></span><i>→</i></Link>
             <Link href={viewPath("victim", "rights")}><b>07</b><span><strong>時限與權利提醒</strong><small>受理、調查、申復期限與可要求的協助</small></span><i>→</i></Link>
-            <Link href={viewPath("victim", "mental")}><b>08</b><span><strong>心理準備與支持</strong><small>面對等待、重述、質疑與程序後的耗竭</small></span><i>→</i></Link>
+            <Link href={viewPath("victim", "mental")}><b>08</b><span><strong>心理準備與支持</strong><small>等待、重述與耗竭，以及匿名同儕支持資源</small></span><i>→</i></Link>
             <Link href={viewPath("victim", "talent")}><b>09</b><span><strong>全國性平委員</strong><small>搜尋教育部公開調查專業人才名冊</small></span><i>→</i></Link>
           </nav>
         </div>
@@ -161,6 +162,33 @@ export default function VictimGuide({ siteView, victimView, pager }: {
           <div className="process-warning"><b>認定會受委員主觀判斷影響，先有這個預期</b><p>性平調查沒有陪審團，事實由調查委員依自由心證認定。同一份證據交給不同委員，結論可能不一樣，這是制度本身就存在的空間，不是你哪裡沒做好。行政調查的證明門檻雖然低於刑事，<b>但門檻低不等於比較容易成立</b>——實務上出現刑事程序認定有罪、性平調查卻認定不成立的情況並不少見，反過來也有。委員與行為人可能同屬教育或學術領域，也可能對行為人產生同理、不願讓對方因此留下永久紀錄；學校本身也可能有聲譽上的考量。這些因素不必然出現在你的個案裡，但它們是結構上真實存在的風險，事先知道，比事後才發現要好受一些。</p></div>
           <div className="process-warning"><b>不成立，不等於事情沒有發生</b><p>調查結果是那幾位委員依現有證據所做的判斷，<b>不是對你的經歷所下的定論，也不是對你這個人的評價</b>。你受到的傷害不會因為一份不成立通知而消失，你的感受也不需要別人認定才算數。如果認為程序或證據取捨有問題，還有申復與申訴可以走；如果決定不再往下走，那也是一個正當的選擇——把力氣留給自己的生活，不是放棄，是另一種照顧自己的方式。</p></div>
           <div className="process-warning"><b>遇到質疑式問題時</b><p>你可以要求對方說明問題與待查事實的關聯、換一種問法、暫停休息，並在紀錄中補充「當時為何僵住、順應、沒有離開或仍需與對方接觸」。這不是要求你替他人的偏見負責，而是避免重要脈絡被省略。</p></div>
+          <div className="peer-support" id="peer-support">
+            <h3 className="block-title">程序之外，也有人可以同行</h3>
+            <p className="peer-support-lead">上面講的都是一個人怎麼面對制度，但復原不一定要一個人走。暖暖 Sunshine 是由倖存者發起的非營利組織，也是陪伴性暴力倖存者的互助社群，舉辦匿名互助社群、支持活動與培力工作坊，也整理了倖存者常用的免費資源。它不是心理諮商機構，走的是團體互助而不是一對一服務；參與可以匿名，不一定要說話，選擇沉默也會被接納。以下整理自暖暖的免費求助資源頁，經該協會同意引用，申請條件與細節請以他們的頁面和各機關公告為準。</p>
+            <div className="detail-grid">
+              <article><h3>匿名同儕支持</h3><ul>
+                <li>匿名互助線上社群：由倖存者陪伴倖存者，在暖暖網站填寫表單後加入，不需要公開身分</li>
+                <li>暖暖友善地圖：倖存者分享諮商所、身心科、法律事務所、婦產科等的使用經驗</li>
+                <li>暖暖圖書館：彙整性暴力相關的書單與資源</li>
+                <li>倖存者故事與專欄投稿：鼓勵用書寫整理與分享自己的經歷，投稿手冊放在暖暖圖書館</li>
+                <li>《開放畫室》藝術陪伴：由實習藝術治療師陪伴創作，詳情需加入暖暖的 LINE 官方帳號</li>
+                <li>《同行日記》：整理十二位倖存者的經驗，共十三章、各章獨立，挑有感覺的看就好</li>
+              </ul></article>
+              <article><h3>心理與經濟資源</h3><ul>
+                <li>性創傷復原中心：提供成年且未進入司法程序者的諮商，名額有限、需要等待</li>
+                <li>各縣市諮商補助：由社工協助申請，金額依縣市而異，不需要先自行墊付</li>
+                <li>租屋補助與就業輔導課程補助：曾接受家防中心服務者可以申請</li>
+                <li>犯罪被害人補償金：有申請期限，盡早向家防中心或社工詢問怎麼申請</li>
+                <li>各縣市家防中心補助：急難生活、法律、就醫等項目，可搜尋「性侵害被害人」加上縣市名稱</li>
+              </ul></article>
+            </div>
+            <div className="companion-note"><b>如果你是陪伴者</b><p>家人、伴侶或朋友在陪伴的過程中也會耗損，甚至出現替代性創傷。暖暖的陪伴者專區提醒陪伴者先照顧自己，也整理了怎麼問才不會造成二度傷害，可以從〈替代性創傷〉和〈如何問，才不會傷害？〉兩篇看起。</p></div>
+            <div className="official-links">
+              <a href="https://nuannuansunshine.org/" target="_blank" rel="noreferrer">暖暖 Sunshine 官方網站 ↗<span className="sr-only">（另開新分頁）</span></a>
+              <a href="https://nuannuansunshine.org/%e5%85%8d%e8%b2%bb%e6%b1%82%e5%8a%a9%e8%b3%87%e6%ba%90/" target="_blank" rel="noreferrer">免費求助資源：倖存者專區與陪伴者專區 ↗<span className="sr-only">（另開新分頁）</span></a>
+              <a href="https://nuannuansunshine.org/%e5%90%8c%e8%a1%8c%e6%97%a5%e8%a8%98/" target="_blank" rel="noreferrer">同行日記 ↗<span className="sr-only">（另開新分頁）</span></a>
+            </div>
+          </div>
         </div>}
         {pager}
       </section>

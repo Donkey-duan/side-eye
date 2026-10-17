@@ -14,6 +14,7 @@ import JudicialMethod from "./components/judicial-method";
 import JudicialReport from "./components/judicial-report";
 import MethodDialog from "./components/method-dialog";
 import PolicyPages from "./components/policy-pages";
+import SafeExit from "./components/safe-exit";
 import VictimGuide from "./components/victim-guide";
 
 // 這個元件掛在 layout 而不是各個 page 底下，切換專區時才不會整個 remount
@@ -280,6 +281,8 @@ export default function SiteView() {
         </details>
       </header>
 
+      <SafeExit />
+
       <main id="main-content">
       <section className={`hero home-hero ${siteView !== "home" ? "site-hidden" : ""}`} id="top">
         <div className="eyebrow"><span /> 全台性別事件公共資訊平台</div>
@@ -307,7 +310,7 @@ export default function SiteView() {
         <div className="metrics explore-scale" aria-label="資料規模">
           <Link className="metric-card" href={viewPath("judges")} aria-label="查看性平刑事判決統計"><strong>{judicialData.coverage.judgments ? judicialData.coverage.judgments.toLocaleString() : "—"}</strong><span>性平刑事判決</span><small>{judicialData.coverage.judgments ? `司法院公開裁判 ${spanLabel(judicialData.months.length)}` : "待首次匯入"} <i>→</i></small></Link>
           <Link className="metric-card" href={viewPath("committee")} aria-label="查看校園性別事件通報統計"><strong>{committeeTotal.toLocaleString()}</strong><span>校園性別事件通報</span><small>臺北市 109–113 學年 <i>→</i></small></Link>
-          <Link className="metric-card" href={viewPath("news")} aria-label="查看公視性平新聞索引"><strong>{newsLoading ? "—" : newsItems.length.toLocaleString()}</strong><span>公視性平新聞索引</span><small>{newsLoading ? "索引中…" : "監測詞查詢與歷史回溯"} <i>→</i></small></Link>
+          <Link className="metric-card" href={viewPath("news")} aria-label="查看公視性平新聞索引"><strong>{newsLoading ? "—" : newsItems.length.toLocaleString()}</strong><span>公視性平新聞索引</span><small>{newsLoading ? "索引中…" : "監測詞篩選，每晚累積"} <i>→</i></small></Link>
           <Link className="metric-card" href={viewPath("victim", "talent")} aria-label="查看全國性平調查人才名冊"><strong>{talentData.records.length ? talentData.records.length.toLocaleString() : "—"}</strong><span>全國性平調查人才</span><small>教育部公開名冊 <i>→</i></small></Link>
         </div>
         <div className="portal-grid explore-primary">
@@ -508,7 +511,7 @@ export default function SiteView() {
           {!newsLoading && newsItems.length === 0 && <div className="news-empty">目前索引中沒有符合此關鍵字的公視新聞，請嘗試較短或相關的詞。</div>}
         </div>
         {newsItems.length > newsPageSize && <nav className="news-pagination" aria-label="新聞搜尋結果分頁"><span>第 {newsPage} / {newsPageCount} 頁</span><div><button onClick={() => setNewsPage((page) => Math.max(1, page - 1))} disabled={newsPage === 1}>← 上一頁</button><button onClick={() => setNewsPage((page) => Math.min(newsPageCount, page + 1))} disabled={newsPage === newsPageCount}>下一頁 →</button></div></nav>}
-        <p className="news-license">索引每晚更新，以 12 個監測詞查詢公視新聞搜尋並往回收錄歷史報導；只保存必要的標題、短摘要與原始連結。部分早期報導在公視搬遷網站時未保留原始發布日期，站上標為「日期不詳」，不以搬遷時間充當發布日。新聞文字、圖片與影音著作權均屬公視或原權利人。</p>
+        <p className="news-license">索引每晚更新：抓公視最新報導後以 12 個監測詞篩選並累積，早期報導來自先前逐頁回溯建立的索引；只保存必要的標題、短摘要與原始連結。部分早期報導在公視搬遷網站時未保留原始發布日期，站上標為「日期不詳」，不以搬遷時間充當發布日。新聞文字、圖片與影音著作權均屬公視或原權利人。</p>
         {exploreNav("news")}
       </section>
 
