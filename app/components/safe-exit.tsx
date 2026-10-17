@@ -21,6 +21,8 @@ function SafeExitDialog({ onClose, triggerRef }: { onClose: () => void; triggerR
       dialog.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'),
     );
     focusable()[0]?.focus();
+    // 初始焦點若落在下方的按鈕，focus 會把可捲動的模態框捲下去，使用者就看不到標題，所以聚焦後把捲動位置拉回最上面
+    dialog.scrollTop = 0;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -60,6 +62,7 @@ function SafeExitDialog({ onClose, triggerRef }: { onClose: () => void; triggerR
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="modal safe-exit-modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="safe-exit-title" onClick={(event) => event.stopPropagation()}>
+        <button className="close" onClick={onClose} aria-label="關閉">×</button>
         <span className="section-kicker">SAFE EXIT</span>
         <h2 id="safe-exit-title">你在看網頁，可以先停下來</h2>
         <p>這一頁不會跑掉，不用急著看完。如果是回憶或情緒突然湧上來，下面是倖存者常用的幾個緩和方法，挑一個做就好，做完覺得還不夠也沒關係；如果是身邊的人或環境讓你不安全，直接用下面的離開按鈕。</p>
